@@ -19,13 +19,14 @@ export interface Donation {
 interface DonationContextType {
   donations: Donation[];
   createDonation: (donation: Omit<Donation, "id" | "donatedAt" | "status">) => Donation;
-  completeDonation: (id: string) => void;
+  completeDonation: (id: string, onComplete?: (donation: Donation) => void) => void;
   cancelDonation: (id: string) => void;
   getDonationsByDonor: (donorId: string) => Donation[];
   getDonationsByHospital: (hospitalName: string) => Donation[];
   getDonationsByBloodBank: (bloodBankName: string) => Donation[];
   getDonationsBySOS: (sosRequestId: string) => Donation[];
   getCompletedDonations: () => Donation[];
+  getCompletedDonationsByDonor: (donorId: string) => Donation[];
 }
 
 const DonationContext = createContext<DonationContextType | undefined>(undefined);
@@ -60,14 +61,20 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
     return newDonation;
   };
 
-  const completeDonation = (id: string) => {
-    setDonations((prev) =>
-      prev.map((d) =>
+  const completeDonation = (id: string, onComplete?: (donation: Donation) => void) => {
+    setDonations((prev) => {
+      const updated = prev.map((d) =>
         d.id === id
           ? { ...d, status: "completed" as const, completedAt: new Date().toISOString() }
           : d
-      )
-    );
+      );
+      const completedDonation = updated.find((d) => d.id === id);
+      if (completedDonation && onComplete) {
+        // Use setTimeout to avoid state update during render
+        setTimeout(() => onComplete(completedDonation), 0);
+      }
+      return updated;
+    });
   };
 
   const cancelDonation = (id: string) => {
@@ -96,6 +103,10 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
     return donations.filter((d) => d.status === "completed");
   };
 
+  const getCompletedDonationsByDonor = (donorId: string) => {
+    return donations.filter((d) => d.donorId === donorId && d.status === "completed");
+  };
+
   return (
     <DonationContext.Provider
       value={{
@@ -108,6 +119,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
         getDonationsByBloodBank,
         getDonationsBySOS,
         getCompletedDonations,
+        getCompletedDonationsByDonor,
       }}
     >
       {children}
