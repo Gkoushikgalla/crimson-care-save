@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { isFirebaseConfigured, getFirebaseDb } from "@/lib/firebase";
+import { sosRequestSchema, safeValidate } from "@/lib/validation";
 
 export interface SOSRequest {
   id: string;
@@ -102,9 +103,34 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
   const createRequest = async (
     requestData: Omit<SOSRequest, "id" | "createdAt" | "matchedDonors" | "confirmedDonors" | "status">
   ): Promise<SOSRequest> => {
+    // Validate input data
+    const validationData = {
+      patientName: requestData.patientName,
+      bloodType: requestData.bloodType,
+      units: requestData.units,
+      urgency: requestData.urgency,
+      notes: requestData.notes || "",
+      hospitalName: requestData.hospitalName,
+      hospitalAddress: requestData.hospitalAddress || "",
+      contactPhone: requestData.contactPhone,
+      contactEmail: requestData.contactEmail,
+    };
+
+    const validation = safeValidate(sosRequestSchema, validationData);
+    if (!validation.success) {
+      throw new Error((validation as { success: false; errors: string[] }).errors[0]);
+    }
+
     const id = crypto.randomUUID?.() || Math.random().toString(36).slice(2);
     const newRequest: SOSRequest = {
       ...requestData,
+      // Sanitize string inputs
+      patientName: requestData.patientName.trim().slice(0, 100),
+      notes: (requestData.notes || "").trim().slice(0, 500),
+      hospitalName: requestData.hospitalName.trim().slice(0, 200),
+      hospitalAddress: (requestData.hospitalAddress || "").trim().slice(0, 500),
+      contactPhone: requestData.contactPhone.trim().slice(0, 20),
+      contactEmail: requestData.contactEmail.trim().toLowerCase().slice(0, 255),
       id,
       createdAt: new Date().toISOString(),
       status: "searching",
@@ -122,6 +148,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (e) {
         console.error("Firebase write error:", e);
+        throw new Error("Failed to create SOS request. Please try again.");
       }
     }
     
@@ -133,12 +160,15 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
     const existing = requests.find((r) => r.id === id);
     if (!existing) return;
 
+    // Prevent modification of critical fields
+    const { id: _, createdAt: __, createdBy: ___, ...allowedUpdates } = updates;
+
     if (isFirebaseConfigured) {
       try {
         const db = await getFirebaseDb();
         if (db) {
-          const { doc, setDoc } = await import("firebase/firestore");
-          await setDoc(doc(db, "sosRequests", id), { ...existing, ...updates });
+          const { doc, updateDoc } = await import("firebase/firestore");
+          await updateDoc(doc(db, "sosRequests", id), allowedUpdates);
           return;
         }
       } catch (e) {
@@ -146,7 +176,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    setRequests((prev) => prev.map((req) => (req.id === id ? { ...req, ...updates } : req)));
+    setRequests((prev) => prev.map((req) => (req.id === id ? { ...req, ...allowedUpdates } : req)));
   };
 
   const deleteRequest = async (id: string) => {

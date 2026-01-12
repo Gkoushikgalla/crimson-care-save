@@ -12,17 +12,52 @@ export const isFirebaseConfigured = Boolean(
   firebaseConfig.apiKey && firebaseConfig.projectId
 );
 
-export const getFirebaseDb = async () => {
+let firebaseApp: any = null;
+
+export const getFirebaseApp = async () => {
   if (!isFirebaseConfigured) return null;
   
   try {
     const { initializeApp, getApps } = await import("firebase/app");
-    const { getFirestore } = await import("firebase/firestore");
     
-    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    if (getApps().length === 0) {
+      firebaseApp = initializeApp(firebaseConfig);
+    } else {
+      firebaseApp = getApps()[0];
+    }
+    return firebaseApp;
+  } catch (e) {
+    console.error("Firebase app init error:", e);
+    return null;
+  }
+};
+
+export const getFirebaseDb = async () => {
+  if (!isFirebaseConfigured) return null;
+  
+  try {
+    const app = await getFirebaseApp();
+    if (!app) return null;
+    
+    const { getFirestore } = await import("firebase/firestore");
     return getFirestore(app);
   } catch (e) {
-    console.error("Firebase init error:", e);
+    console.error("Firebase Firestore init error:", e);
+    return null;
+  }
+};
+
+export const getFirebaseAuth = async () => {
+  if (!isFirebaseConfigured) return null;
+  
+  try {
+    const app = await getFirebaseApp();
+    if (!app) return null;
+    
+    const { getAuth } = await import("firebase/auth");
+    return getAuth(app);
+  } catch (e) {
+    console.error("Firebase Auth init error:", e);
     return null;
   }
 };

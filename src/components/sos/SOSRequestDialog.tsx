@@ -29,8 +29,11 @@ interface SOSRequestDialogProps {
   onSuccess?: (request: SOSRequest) => void;
 }
 
+const bloodTypes = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"] as const;
+
 const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDialogProps) => {
   const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { createRequest } = useSOS();
   const { user } = useAuth();
 
@@ -46,53 +49,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
     notes: "",
   });
 
-  const handleSubmit = async () => {
-    // Validate required fields
-    if (!formData.patientName.trim()) {
-      toast.error("Patient name is required");
-      return;
-    }
-    if (!formData.bloodType) {
-      toast.error("Blood type is required");
-      return;
-    }
-    if (!formData.units || parseInt(formData.units) < 1) {
-      toast.error("Valid units required is required");
-      return;
-    }
-    if (!formData.urgency) {
-      toast.error("Urgency level is required");
-      return;
-    }
-
-    // For public requests, additional fields are required
-    if (isPublic) {
-      if (!formData.hospitalName.trim()) {
-        toast.error("Hospital/Location name is required");
-        return;
-      }
-      if (!formData.contactPhone.trim()) {
-        toast.error("Contact phone is required");
-        return;
-      }
-    }
-
-    const request = await createRequest({
-      patientName: formData.patientName.trim(),
-      bloodType: formData.bloodType,
-      units: parseInt(formData.units),
-      urgency: formData.urgency as "critical" | "high" | "moderate",
-      notes: formData.notes.trim(),
-      hospitalName: isPublic ? formData.hospitalName.trim() : (user?.hospitalName || "Hospital"),
-      hospitalAddress: isPublic ? formData.hospitalAddress.trim() : "",
-      contactPhone: isPublic ? formData.contactPhone.trim() : (user?.phone || ""),
-      contactEmail: isPublic ? formData.contactEmail.trim() : (user?.email || ""),
-      createdBy: user?.id || "anonymous",
-      source: isPublic ? "public" : "hospital",
-    });
-
-    toast.success("SOS Alert sent! Matching donors are being notified.");
-    setOpen(false);
+  const resetForm = () => {
     setFormData({
       patientName: "",
       bloodType: "",
@@ -104,8 +61,82 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
       contactEmail: "",
       notes: "",
     });
+  };
 
-    onSuccess?.(request);
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+
+    // Validate required fields
+    const patientName = formData.patientName.trim();
+    if (!patientName || patientName.length > 100) {
+      toast.error("Patient name is required (max 100 characters)");
+      return;
+    }
+
+    if (!formData.bloodType || !bloodTypes.includes(formData.bloodType as any)) {
+      toast.error("Please select a valid blood type");
+      return;
+    }
+
+    const units = parseInt(formData.units);
+    if (isNaN(units) || units < 1 || units > 10) {
+      toast.error("Units must be between 1 and 10");
+      return;
+    }
+
+    if (!["critical", "high", "moderate"].includes(formData.urgency)) {
+      toast.error("Please select urgency level");
+      return;
+    }
+
+    // For public requests, additional fields are required
+    const hospitalName = isPublic ? formData.hospitalName.trim() : (user?.hospitalName || "Hospital");
+    const contactPhone = isPublic ? formData.contactPhone.trim() : (user?.phone || "");
+    const contactEmail = isPublic ? formData.contactEmail.trim() : (user?.email || "");
+
+    if (isPublic) {
+      if (!hospitalName || hospitalName.length > 200) {
+        toast.error("Hospital/Location name is required (max 200 characters)");
+        return;
+      }
+      if (!contactPhone || contactPhone.replace(/[\s\-\(\)]/g, "").length < 10) {
+        toast.error("Valid contact phone is required");
+        return;
+      }
+    }
+
+    // Validate notes length
+    if (formData.notes.length > 500) {
+      toast.error("Notes must be less than 500 characters");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const request = await createRequest({
+        patientName,
+        bloodType: formData.bloodType,
+        units,
+        urgency: formData.urgency as "critical" | "high" | "moderate",
+        notes: formData.notes.trim(),
+        hospitalName,
+        hospitalAddress: formData.hospitalAddress.trim().slice(0, 500),
+        contactPhone,
+        contactEmail: contactEmail.toLowerCase(),
+        createdBy: user?.id || "anonymous",
+        source: isPublic ? "public" : "hospital",
+      });
+
+      toast.success("SOS Alert sent! Matching donors are being notified.");
+      setOpen(false);
+      resetForm();
+      onSuccess?.(request);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create SOS request. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -135,6 +166,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
             <Label>Patient Name *</Label>
             <Input
               placeholder="Enter patient name"
+              maxLength={100}
               value={formData.patientName}
               onChange={(e) => setFormData((p) => ({ ...p, patientName: e.target.value }))}
             />
@@ -152,7 +184,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((type) => (
+                  {bloodTypes.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type}
                     </SelectItem>
@@ -167,7 +199,8 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
               <Input
                 type="number"
                 min="1"
-                placeholder="Units"
+                max="10"
+                placeholder="1-10"
                 value={formData.units}
                 onChange={(e) => setFormData((p) => ({ ...p, units: e.target.value }))}
               />
@@ -199,6 +232,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
                 <Label>Hospital / Location Name *</Label>
                 <Input
                   placeholder="Enter hospital or location name"
+                  maxLength={200}
                   value={formData.hospitalName}
                   onChange={(e) => setFormData((p) => ({ ...p, hospitalName: e.target.value }))}
                 />
@@ -209,6 +243,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
                 <Textarea
                   placeholder="Enter full address"
                   rows={2}
+                  maxLength={500}
                   value={formData.hospitalAddress}
                   onChange={(e) => setFormData((p) => ({ ...p, hospitalAddress: e.target.value }))}
                 />
@@ -220,6 +255,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
                   <Input
                     type="tel"
                     placeholder="Phone number"
+                    maxLength={20}
                     value={formData.contactPhone}
                     onChange={(e) => setFormData((p) => ({ ...p, contactPhone: e.target.value }))}
                   />
@@ -229,6 +265,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
                   <Input
                     type="email"
                     placeholder="Email address"
+                    maxLength={255}
                     value={formData.contactEmail}
                     onChange={(e) => setFormData((p) => ({ ...p, contactEmail: e.target.value }))}
                   />
@@ -239,10 +276,11 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
 
           {/* Notes */}
           <div className="space-y-2">
-            <Label>Additional Notes</Label>
+            <Label>Additional Notes ({formData.notes.length}/500)</Label>
             <Textarea
               placeholder="Any specific requirements or additional information..."
               rows={2}
+              maxLength={500}
               value={formData.notes}
               onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
             />
@@ -250,11 +288,11 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
         </div>
 
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+          <Button variant="outline" onClick={() => setOpen(false)} className="flex-1" disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button variant="sos" onClick={handleSubmit} className="flex-1">
-            Send SOS Alert
+          <Button variant="sos" onClick={handleSubmit} className="flex-1" disabled={isSubmitting}>
+            {isSubmitting ? "Sending..." : "Send SOS Alert"}
           </Button>
         </div>
       </DialogContent>

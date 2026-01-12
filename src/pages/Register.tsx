@@ -175,12 +175,20 @@ const Register = () => {
     // Simulate network delay with loading quotes
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
+    // Validate role - prevent admin self-registration
+    const role = formData.role as "donor" | "hospital" | "bloodbank";
+    if (!["donor", "hospital", "bloodbank"].includes(role)) {
+      toast.error("Invalid role selection");
+      setIsLoading(false);
+      return;
+    }
+
     const result = await register({
       name: formData.name,
       email: formData.email.trim().toLowerCase(),
       phone: formData.phone,
       password: formData.password,
-      role: formData.role as "donor" | "hospital" | "bloodbank" | "admin",
+      role,
       bloodType: formData.role === "donor" ? formData.bloodType : undefined,
       apaarId: formData.role === "donor" && formData.apaarId ? formData.apaarId : undefined,
       hospitalName: formData.role === "hospital" ? formData.hospitalName : undefined,
