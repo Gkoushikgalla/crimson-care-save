@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import DonationCentersMap from "@/components/maps/DonationCentersMap";
 
 const DonorDashboard = () => {
   const navigate = useNavigate();
@@ -36,22 +37,25 @@ const DonorDashboard = () => {
     "overview" | "profile" | "history" | "rewards" | "alerts" | "settings"
   >("overview");
   const [isEditing, setIsEditing] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+
+  // Get donor stats from user (defaults to empty for new users)
+  const donorStats = user?.donorStats;
 
   const donor = useMemo(() => {
-    const fallbackName = user?.name || "Donor";
     return {
-      name: fallbackName,
-      bloodType: user?.bloodType || "O+",
+      name: user?.name || "Donor",
+      bloodType: user?.bloodType || "Unknown",
       email: user?.email || "",
       phone: user?.phone || "",
-      totalDonations: 12,
-      lastDonation: "2024-10-15",
-      nextEligible: "2025-01-15",
-      points: 2400,
-      level: "Gold Donor",
-      isEligible: true,
+      totalDonations: donorStats?.totalDonations || 0,
+      lastDonation: donorStats?.lastDonation || null,
+      nextEligible: donorStats?.nextEligible || new Date().toISOString().split("T")[0],
+      points: donorStats?.points || 0,
+      level: donorStats?.level || "New Donor",
+      isEligible: !donorStats?.lastDonation || true, // New users are eligible
     };
-  }, [user]);
+  }, [user, donorStats]);
 
   const [profile, setProfile] = useState({
     name: donor.name,
@@ -61,6 +65,7 @@ const DonorDashboard = () => {
     medicalNotes: "",
   });
 
+  // SOS alerts (mock - would come from backend)
   const recentAlerts = [
     {
       id: 1,
@@ -82,17 +87,15 @@ const DonorDashboard = () => {
     },
   ];
 
-  const donationHistory = [
-    { id: 1, date: "2024-10-15", location: "City Blood Center", units: 1 },
-    { id: 2, date: "2024-08-10", location: "St. Mary's Hospital", units: 1 },
-    { id: 3, date: "2024-06-05", location: "Mobile Drive - Downtown", units: 1 },
-  ];
+  // Get donation history from user stats (empty for new users)
+  const donationHistory = donorStats?.donationHistory || [];
 
-  const badges = [
-    { name: "First Donation", icon: "🩸", earned: true },
-    { name: "5 Donations", icon: "⭐", earned: true },
-    { name: "10 Donations", icon: "🏆", earned: true },
-    { name: "Life Saver", icon: "❤️", earned: true },
+  // Get badges from user stats
+  const badges = donorStats?.badges || [
+    { name: "First Donation", icon: "🩸", earned: false },
+    { name: "5 Donations", icon: "⭐", earned: false },
+    { name: "10 Donations", icon: "🏆", earned: false },
+    { name: "Life Saver", icon: "❤️", earned: false },
     { name: "25 Donations", icon: "👑", earned: false },
   ];
 
@@ -111,6 +114,18 @@ const DonorDashboard = () => {
     setIsEditing(false);
     toast.success("Profile updated");
   };
+
+  // Calculate points needed for next level
+  const getNextLevelInfo = () => {
+    const points = donor.points;
+    if (points < 500) return { next: "Bronze Donor", needed: 500 - points, max: 500 };
+    if (points < 1500) return { next: "Silver Donor", needed: 1500 - points, max: 1500 };
+    if (points < 3000) return { next: "Gold Donor", needed: 3000 - points, max: 3000 };
+    if (points < 5000) return { next: "Platinum Donor", needed: 5000 - points, max: 5000 };
+    return { next: "Legend", needed: 0, max: points };
+  };
+
+  const levelInfo = getNextLevelInfo();
 
   const renderTab = () => {
     switch (activeTab) {
@@ -192,7 +207,7 @@ const DonorDashboard = () => {
                     <Droplets className="h-5 w-5 text-primary" />
                     Health Information
                   </CardTitle>
-                  <CardDescription>Eligibility is rule-based and depends on donation interval & risk flags.</CardDescription>
+                  <CardDescription>Eligibility is based on donation interval & health status.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -201,8 +216,8 @@ const DonorDashboard = () => {
                       <p className="text-xl font-bold text-success">Eligible</p>
                     </div>
                     <div className="p-4 rounded-xl bg-secondary">
-                      <p className="text-xs text-muted-foreground">Next Eligible</p>
-                      <p className="text-xl font-bold">{donor.nextEligible}</p>
+                      <p className="text-xs text-muted-foreground">Blood Type</p>
+                      <p className="text-xl font-bold text-primary">{donor.bloodType}</p>
                     </div>
                   </div>
 
@@ -238,19 +253,35 @@ const DonorDashboard = () => {
             <h2 className="text-2xl font-display font-bold">Donation History</h2>
             <Card className="shadow-card">
               <CardHeader>
-                <CardTitle>Recent Donations</CardTitle>
+                <CardTitle>Your Donations</CardTitle>
                 <CardDescription>Track your donation dates and centers.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {donationHistory.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between p-4 rounded-xl bg-secondary/40">
-                    <div>
-                      <p className="font-semibold">{d.location}</p>
-                      <p className="text-sm text-muted-foreground">{d.date}</p>
-                    </div>
-                    <Badge variant="outline">{d.units} unit</Badge>
+              <CardContent>
+                {donationHistory.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Droplets className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-medium text-foreground mb-2">No donations yet</p>
+                    <p className="text-muted-foreground mb-6">
+                      Make your first donation to start saving lives!
+                    </p>
+                    <Button variant="hero" onClick={() => setShowMap(true)}>
+                      <MapPin className="h-4 w-4 mr-2" />
+                      Find Donation Center
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-3">
+                    {donationHistory.map((d) => (
+                      <div key={d.id} className="flex items-center justify-between p-4 rounded-xl bg-secondary/40">
+                        <div>
+                          <p className="font-semibold">{d.location}</p>
+                          <p className="text-sm text-muted-foreground">{d.date}</p>
+                        </div>
+                        <Badge variant="outline">{d.units} unit</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -270,11 +301,21 @@ const DonorDashboard = () => {
                 <div className="p-4 rounded-xl bg-gradient-crimson-light border border-primary/20">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-semibold">{donor.level}</span>
-                    <span className="text-sm text-muted-foreground">{donor.points} / 3000 pts</span>
+                    <span className="text-sm text-muted-foreground">
+                      {donor.points} / {levelInfo.max} pts
+                    </span>
                   </div>
-                  <Progress value={(donor.points / 3000) * 100} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-2">600 more points to reach Platinum Donor</p>
+                  <Progress value={(donor.points / levelInfo.max) * 100} className="h-2" />
+                  {levelInfo.needed > 0 && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {levelInfo.needed} more points to reach {levelInfo.next}
+                    </p>
+                  )}
                 </div>
+
+                <p className="text-sm text-muted-foreground my-4">
+                  Earn 200 points for each donation. Complete donations to unlock badges!
+                </p>
 
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
                   {badges.map((badge) => (
@@ -362,6 +403,7 @@ const DonorDashboard = () => {
       default:
         return (
           <div className="space-y-6 animate-fade-in">
+            {/* Eligibility Banner */}
             <Card className={`border-2 ${donor.isEligible ? "border-success bg-success/5" : "border-warning bg-warning/5"}`}>
               <CardContent className="flex flex-col md:flex-row md:items-center gap-4 py-4">
                 {donor.isEligible ? (
@@ -369,9 +411,16 @@ const DonorDashboard = () => {
                     <CheckCircle className="h-8 w-8 text-success" />
                     <div className="flex-1">
                       <p className="font-semibold">You're eligible to donate!</p>
-                      <p className="text-sm text-muted-foreground">Your last donation was on {donor.lastDonation}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {donor.lastDonation 
+                          ? `Your last donation was on ${donor.lastDonation}` 
+                          : "Make your first donation today!"}
+                      </p>
                     </div>
-                    <Button variant="hero" size="sm">Find Donation Center</Button>
+                    <Button variant="hero" size="sm" onClick={() => setShowMap(true)}>
+                      <MapPin className="h-4 w-4 mr-2" />
+                      Find Donation Center
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -385,10 +434,11 @@ const DonorDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { icon: Droplets, label: "Total Donations", value: donor.totalDonations, color: "text-primary" },
-                { icon: Calendar, label: "Last Donation", value: donor.lastDonation, color: "text-info" },
+                { icon: Calendar, label: "Last Donation", value: donor.lastDonation || "None yet", color: "text-info" },
                 { icon: Award, label: "Points Earned", value: donor.points.toLocaleString(), color: "text-warning" },
                 { icon: Heart, label: "Lives Saved", value: donor.totalDonations * 3, color: "text-success" },
               ].map((stat) => (
@@ -407,6 +457,7 @@ const DonorDashboard = () => {
             </div>
 
             <div className="grid lg:grid-cols-2 gap-6">
+              {/* SOS Alerts */}
               <Card className="shadow-card">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
@@ -429,8 +480,7 @@ const DonorDashboard = () => {
                           {alert.urgency.toUpperCase()}
                         </Badge>
                       </div>
-                      <Button variant="hero" size="sm" className="w-full" onClick={() => setActiveTab("alerts")}
-                      >
+                      <Button variant="hero" size="sm" className="w-full" onClick={() => setActiveTab("alerts")}>
                         View & Respond
                         <ChevronRight className="h-4 w-4" />
                       </Button>
@@ -439,6 +489,7 @@ const DonorDashboard = () => {
                 </CardContent>
               </Card>
 
+              {/* Rewards & Badges */}
               <Card className="shadow-card">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -450,14 +501,19 @@ const DonorDashboard = () => {
                   <div className="mb-6 p-4 rounded-xl bg-gradient-crimson-light border border-primary/20">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-semibold">{donor.level}</span>
-                      <span className="text-sm text-muted-foreground">{donor.points} / 3000 pts</span>
+                      <span className="text-sm text-muted-foreground">
+                        {donor.points} / {levelInfo.max} pts
+                      </span>
                     </div>
-                    <Progress value={(donor.points / 3000) * 100} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-2">600 more points to reach Platinum Donor</p>
+                    <Progress value={(donor.points / levelInfo.max) * 100} className="h-2" />
+                    {levelInfo.needed > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {levelInfo.needed} more points to reach {levelInfo.next}
+                      </p>
+                    )}
                   </div>
 
-                  <Button variant="outline" className="w-full" onClick={() => setActiveTab("rewards")}
-                  >
+                  <Button variant="outline" className="w-full" onClick={() => setActiveTab("rewards")}>
                     View All Rewards
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -543,6 +599,9 @@ const DonorDashboard = () => {
 
         {renderTab()}
       </main>
+
+      {/* Google Maps Modal */}
+      <DonationCentersMap isOpen={showMap} onClose={() => setShowMap(false)} />
     </div>
   );
 };

@@ -17,7 +17,7 @@ const getDashboardPath = (role?: string) => {
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, login } = useAuth();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -29,32 +29,27 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Demo login: if a user already registered, continue as them.
-    setTimeout(() => {
-      setIsLoading(false);
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
-      if (user) {
-        toast.success("Welcome back!");
-        navigate(getDashboardPath(user.role));
-        return;
-      }
+    const result = login(formData.email, formData.password);
+    setIsLoading(false);
 
-      const inferredName = formData.email?.includes("@")
-        ? formData.email.split("@")[0]
-        : "Donor";
+    if (!result.success) {
+      toast.error(result.error || "Invalid email or password");
+      return;
+    }
 
-      login({
-        id: Math.random().toString(36).slice(2),
-        name: inferredName,
-        email: formData.email,
-        phone: "",
-        role: "donor",
-        bloodType: "O+",
-      });
-
-      toast.success("Login successful!");
-      navigate("/dashboard/donor");
-    }, 700);
+    toast.success("Welcome back!");
+    
+    // Get updated user from localStorage to determine role
+    const savedUser = localStorage.getItem("crimsoncare_current_user");
+    if (savedUser) {
+      const userData = JSON.parse(savedUser);
+      navigate(getDashboardPath(userData.role));
+    } else {
+      navigate("/dashboard");
+    }
   };
 
   return (
@@ -126,7 +121,7 @@ const Login = () => {
               </div>
 
               <Button type="submit" variant="hero" size="lg" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : user ? "Continue" : "Sign In"}
+                {isLoading ? "Signing in..." : "Sign In"}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
