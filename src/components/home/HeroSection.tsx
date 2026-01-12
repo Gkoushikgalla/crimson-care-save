@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Heart, ArrowRight, Droplets, Users, Clock } from "lucide-react";
+import { Heart, ArrowRight, Droplets, Users, Clock, AlertTriangle } from "lucide-react";
 import heroBloodBg from "@/assets/hero-blood-bg.png";
+import SOSRequestDialog from "@/components/sos/SOSRequestDialog";
 
 const HeroSection = () => {
   return (
@@ -63,11 +64,15 @@ const HeroSection = () => {
                 <ArrowRight className="h-5 w-5" />
               </Link>
             </Button>
-            <Button variant="heroOutline" size="xl" asChild>
-              <Link to="/emergency">
-                Emergency Request
-              </Link>
-            </Button>
+            <SOSRequestDialog
+              isPublic={true}
+              trigger={
+                <Button variant="heroOutline" size="xl">
+                  <AlertTriangle className="h-5 w-5" />
+                  Emergency Request
+                </Button>
+              }
+            />
           </div>
 
           {/* Stats */}

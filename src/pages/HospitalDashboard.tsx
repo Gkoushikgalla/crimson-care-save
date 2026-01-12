@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Heart,
   Building2,
@@ -21,31 +20,20 @@ import {
   MapPin,
   Phone,
   Droplets,
+  User,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSOS } from "@/contexts/SOSContext";
+import SOSRequestDialog from "@/components/sos/SOSRequestDialog";
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { getRequestsByHospital } = useSOS();
   const [activeTab, setActiveTab] = useState<
     "overview" | "create" | "requests" | "responses" | "records" | "settings"
   >("overview");
-  const [isCreatingRequest, setIsCreatingRequest] = useState(false);
-  const [newRequest, setNewRequest] = useState({
-    bloodType: "",
-    units: "",
-    urgency: "",
-    notes: "",
-  });
 
   const hospital = useMemo(() => {
     return {
@@ -60,28 +48,50 @@ const HospitalDashboard = () => {
     };
   }, [user]);
 
-  const activeRequests = [
-    {
-      id: 1,
-      bloodType: "O-",
-      units: 3,
-      urgency: "critical",
-      status: "searching",
-      matchedDonors: 5,
-      confirmedDonors: 2,
-      createdAt: "10 min ago",
-    },
-    {
-      id: 2,
-      bloodType: "A+",
-      units: 2,
-      urgency: "high",
-      status: "in_progress",
-      matchedDonors: 8,
-      confirmedDonors: 2,
-      createdAt: "45 min ago",
-    },
-  ];
+  // Helper to format time ago
+  function getTimeAgo(dateString: string): string {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    return `${Math.floor(diffHours / 24)} day${Math.floor(diffHours / 24) > 1 ? "s" : ""} ago`;
+  }
+
+  // Get active requests from SOS context for this hospital
+  const activeRequests = useMemo(() => {
+    const requests = getRequestsByHospital(hospital.name);
+    if (requests.length === 0) {
+      // Show sample data if no requests
+      return [
+        {
+          id: "sample-1",
+          patientName: "Sample Patient",
+          bloodType: "O-",
+          units: 3,
+          urgency: "critical" as const,
+          status: "searching" as const,
+          matchedDonors: 5,
+          confirmedDonors: 2,
+          createdAt: "Demo data",
+        },
+      ];
+    }
+    return requests.map((req) => ({
+      id: req.id,
+      patientName: req.patientName,
+      bloodType: req.bloodType,
+      units: req.units,
+      urgency: req.urgency,
+      status: req.status,
+      matchedDonors: req.matchedDonors,
+      confirmedDonors: req.confirmedDonors,
+      createdAt: getTimeAgo(req.createdAt),
+    }));
+  }, [getRequestsByHospital, hospital.name]);
 
   const confirmedDonors = [
     { id: 1, name: "John D.", bloodType: "O-", distance: "2.1 km", eta: "15 min", phone: "+1 555-0123" },
@@ -94,17 +104,6 @@ const HospitalDashboard = () => {
     { id: 2, donor: "Sarah M.", bloodType: "O-", units: 1, date: "2024-01-09", status: "completed" },
     { id: 3, donor: "Mike R.", bloodType: "A+", units: 1, date: "2024-01-08", status: "completed" },
   ];
-
-  const handleCreateRequest = () => {
-    if (!newRequest.bloodType || !newRequest.units || !newRequest.urgency) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    toast.success("SOS Alert sent! Matching donors are being notified.");
-    setIsCreatingRequest(false);
-    setNewRequest({ bloodType: "", units: "", urgency: "", notes: "" });
-  };
 
   const handleLogout = () => {
     logout();
@@ -126,67 +125,18 @@ const HospitalDashboard = () => {
                 </CardTitle>
                 <CardDescription>This will notify nearby eligible donors instantly.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Blood Type *</Label>
-                    <Select value={newRequest.bloodType} onValueChange={(v) => setNewRequest((p) => ({ ...p, bloodType: v }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select blood type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Units Required *</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={newRequest.units}
-                      onChange={(e) => setNewRequest((p) => ({ ...p, units: e.target.value }))}
-                      placeholder="Number of units"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Urgency Level *</Label>
-                  <Select value={newRequest.urgency} onValueChange={(v) => setNewRequest((p) => ({ ...p, urgency: v }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select urgency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="critical">🔴 Critical (Immediate)</SelectItem>
-                      <SelectItem value="high">🟠 High (Within 2 hours)</SelectItem>
-                      <SelectItem value="moderate">🟡 Moderate (Within 6 hours)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Additional Notes</Label>
-                  <Input
-                    value={newRequest.notes}
-                    onChange={(e) => setNewRequest((p) => ({ ...p, notes: e.target.value }))}
-                    placeholder="Any specific requirements..."
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setNewRequest({ bloodType: "", units: "", urgency: "", notes: "" })}>
-                    Reset
-                  </Button>
-                  <Button variant="sos" className="flex-1" onClick={handleCreateRequest}>
-                    Send SOS Alert
-                  </Button>
-                </div>
+              <CardContent className="flex flex-col items-center py-8">
+                <p className="text-muted-foreground mb-6 text-center">
+                  Click the button below to create a new SOS blood request with patient details.
+                </p>
+                <SOSRequestDialog
+                  trigger={
+                    <Button variant="sos" size="lg">
+                      <AlertTriangle className="h-5 w-5" />
+                      Create SOS Request
+                    </Button>
+                  }
+                />
               </CardContent>
             </Card>
           </div>
@@ -206,8 +156,13 @@ const HospitalDashboard = () => {
                           <span className="text-lg font-bold text-primary-foreground">{request.bloodType}</span>
                         </div>
                         <div>
-                          <p className="font-semibold">{request.units} unit(s) needed</p>
-                          <p className="text-sm text-muted-foreground">Created {request.createdAt}</p>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-semibold">{request.patientName}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {request.units} unit(s) needed • {request.createdAt}
+                          </p>
                         </div>
                       </div>
                       <Badge className={request.urgency === "critical" ? "bg-destructive" : request.urgency === "high" ? "bg-warning" : "bg-info"}>
@@ -387,8 +342,11 @@ const HospitalDashboard = () => {
                             <span className="text-sm font-bold text-primary-foreground">{request.bloodType}</span>
                           </div>
                           <div>
-                            <p className="font-semibold">{request.units} unit(s)</p>
-                            <p className="text-xs text-muted-foreground">{request.createdAt}</p>
+                            <div className="flex items-center gap-2">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="font-semibold text-sm">{request.patientName}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{request.units} unit(s) • {request.createdAt}</p>
                           </div>
                         </div>
                         <Badge className={request.urgency === "critical" ? "bg-destructive" : request.urgency === "high" ? "bg-warning" : "bg-info"}>
@@ -505,81 +463,14 @@ const HospitalDashboard = () => {
               <Bell className="h-4 w-4" />
             </Button>
 
-            <Dialog open={isCreatingRequest} onOpenChange={setIsCreatingRequest}>
-              <DialogTrigger asChild>
+            <SOSRequestDialog
+              trigger={
                 <Button variant="sos" size="lg">
                   <AlertTriangle className="h-5 w-5" />
                   Create SOS Request
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-destructive">
-                    <AlertTriangle className="h-5 w-5" />
-                    Emergency Blood Request
-                  </DialogTitle>
-                  <DialogDescription>
-                    This will send instant notifications to all matching donors in your area.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Blood Type Required *</Label>
-                    <Select value={newRequest.bloodType} onValueChange={(v) => setNewRequest((p) => ({ ...p, bloodType: v }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select blood type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Units Required *</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Number of units"
-                      value={newRequest.units}
-                      onChange={(e) => setNewRequest((p) => ({ ...p, units: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Urgency Level *</Label>
-                    <Select value={newRequest.urgency} onValueChange={(v) => setNewRequest((p) => ({ ...p, urgency: v }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select urgency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="critical">🔴 Critical (Immediate)</SelectItem>
-                        <SelectItem value="high">🟠 High (Within 2 hours)</SelectItem>
-                        <SelectItem value="moderate">🟡 Moderate (Within 6 hours)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Additional Notes</Label>
-                    <Input
-                      placeholder="Any specific requirements..."
-                      value={newRequest.notes}
-                      onChange={(e) => setNewRequest((p) => ({ ...p, notes: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setIsCreatingRequest(false)} className="flex-1">
-                    Cancel
-                  </Button>
-                  <Button variant="sos" onClick={handleCreateRequest} className="flex-1">
-                    Send SOS Alert
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+              }
+            />
           </div>
         </div>
 

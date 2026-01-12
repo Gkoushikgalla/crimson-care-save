@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSOS } from "@/contexts/SOSContext";
 import DonationCentersMap from "@/components/maps/DonationCentersMap";
 
 // Reusable setting toggle component
@@ -63,11 +64,37 @@ const SettingToggle = ({
 const DonorDashboard = () => {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
+  const { getActiveRequests } = useSOS();
   const [activeTab, setActiveTab] = useState<
     "overview" | "profile" | "history" | "rewards" | "alerts" | "settings"
   >("overview");
   const [isEditing, setIsEditing] = useState(false);
   const [showMap, setShowMap] = useState(false);
+
+  // Get SOS alerts from context
+  const recentAlerts = useMemo(() => {
+    const requests = getActiveRequests();
+    return requests.slice(0, 5).map((req) => ({
+      id: req.id,
+      hospital: req.hospitalName,
+      patientName: req.patientName,
+      bloodType: req.bloodType,
+      urgency: req.urgency,
+      distance: "~3 km",
+      time: getTimeAgo(req.createdAt),
+      units: req.units,
+      address: req.hospitalAddress,
+      phone: req.contactPhone,
+    }));
+  }, [getActiveRequests]);
+
+  function getTimeAgo(dateString: string): string {
+    const diffMs = Date.now() - new Date(dateString).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    return `${Math.floor(diffMins / 60)} hr ago`;
+  }
 
   // Get donor stats from user (defaults to empty for new users)
   const donorStats = user?.donorStats;
@@ -102,25 +129,19 @@ const DonorDashboard = () => {
     medicalNotes: "",
   });
 
-  // SOS alerts (mock - would come from backend)
-  const recentAlerts = [
+  // Fallback sample alerts if none exist
+  const displayAlerts = recentAlerts.length > 0 ? recentAlerts : [
     {
-      id: 1,
+      id: "sample-1",
       hospital: "City General Hospital",
+      patientName: "Sample Patient",
       bloodType: donor.bloodType,
       urgency: "critical" as const,
       distance: "2.5 km",
-      time: "10 min ago",
+      time: "Demo",
       units: 2,
-    },
-    {
-      id: 2,
-      hospital: "St. Mary's Medical Center",
-      bloodType: donor.bloodType,
-      urgency: "high" as const,
-      distance: "4.8 km",
-      time: "25 min ago",
-      units: 1,
+      address: "",
+      phone: "",
     },
   ];
 
@@ -142,7 +163,7 @@ const DonorDashboard = () => {
     navigate("/login");
   };
 
-  const handleAccept = (id: number) => {
+  const handleAccept = (id: string) => {
     toast.success("Request accepted! The hospital has been notified.");
   };
 
