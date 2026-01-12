@@ -29,7 +29,7 @@ const steps = [
 
 const HowItWorksSection = () => {
   return (
-    <section className="py-24 bg-background">
+    <section className="py-24 bg-secondary/30">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
@@ -43,20 +43,20 @@ const HowItWorksSection = () => {
 
         {/* Steps */}
         <div className="relative max-w-5xl mx-auto">
-          {/* Connection Line */}
-          <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/20 via-primary to-primary/20 -translate-y-1/2" />
+          {/* Connection Line - positioned below the icons */}
+          <div className="hidden lg:block absolute top-[120px] left-[10%] right-[10%] h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {steps.map((step, index) => (
               <div key={index} className="relative">
                 {/* Card */}
-                <div className="relative z-10 flex flex-col items-center text-center p-6">
+                <div className="relative z-10 flex flex-col items-center text-center p-6 bg-background rounded-2xl shadow-card">
                   {/* Step Number */}
-                  <div className="relative mb-4">
-                    <div className="w-20 h-20 rounded-full bg-card border-2 border-primary flex items-center justify-center shadow-crimson">
+                  <div className="relative mb-6">
+                    <div className="w-20 h-20 rounded-full bg-background border-2 border-primary flex items-center justify-center shadow-lg">
                       <step.icon className="h-8 w-8 text-primary" />
                     </div>
-                    <span className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-crimson text-primary-foreground text-sm font-bold flex items-center justify-center">
+                    <span className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-crimson text-primary-foreground text-sm font-bold flex items-center justify-center shadow-md">
                       {step.step}
                     </span>
                   </div>
@@ -64,7 +64,7 @@ const HowItWorksSection = () => {
                   <h3 className="text-lg font-semibold text-foreground mb-2">
                     {step.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     {step.description}
                   </p>
                 </div>

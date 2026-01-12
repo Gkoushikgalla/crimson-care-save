@@ -18,6 +18,7 @@ export interface User {
   password: string; // For mock auth matching
   role: "donor" | "hospital" | "bloodbank" | "admin";
   bloodType?: string;
+  apaarId?: string;
   hospitalName?: string;
   bloodBankName?: string;
   licenseNumber?: string;
