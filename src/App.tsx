@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SOSProvider } from "@/contexts/SOSContext";
 import { DonationProvider } from "@/contexts/DonationContext";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -28,15 +29,43 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
+                {/* Public routes */}
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/dashboard" element={<DonorDashboard />} />
-                <Route path="/dashboard/donor" element={<DonorDashboard />} />
-                <Route path="/dashboard/hospital" element={<HospitalDashboard />} />
-                <Route path="/dashboard/bloodbank" element={<BloodBankDashboard />} />
-                <Route path="/dashboard/admin" element={<AdminDashboard />} />
-                <Route path="/sos/:id" element={<SOSDetails />} />
+                
+                {/* Protected routes - require authentication */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute allowedRoles={["donor"]}>
+                    <DonorDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/donor" element={
+                  <ProtectedRoute allowedRoles={["donor"]}>
+                    <DonorDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/hospital" element={
+                  <ProtectedRoute allowedRoles={["hospital"]}>
+                    <HospitalDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/bloodbank" element={
+                  <ProtectedRoute allowedRoles={["bloodbank"]}>
+                    <BloodBankDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/admin" element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/sos/:id" element={
+                  <ProtectedRoute>
+                    <SOSDetails />
+                  </ProtectedRoute>
+                } />
+                
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
