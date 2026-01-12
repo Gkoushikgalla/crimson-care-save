@@ -1,11 +1,35 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { Heart, Menu, X, Sun, Moon } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark");
+    }
+    return false;
+  });
   const location = useLocation();
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDark]);
+
+  // Initialize theme from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      setIsDark(true);
+    }
+  }, []);
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -46,8 +70,19 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* Auth Buttons */}
+          {/* Auth Buttons + Theme Toggle */}
           <div className="hidden md:flex items-center gap-3">
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors"
+              aria-label="Toggle theme"
+            >
+              {isDark ? (
+                <Sun className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+              ) : (
+                <Moon className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+              )}
+            </button>
             <Button variant="ghost" asChild>
               <Link to="/login">Sign In</Link>
             </Button>
@@ -84,6 +119,13 @@ const Navbar = () => {
                 </Link>
               ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
+                <button
+                  onClick={() => setIsDark(!isDark)}
+                  className="flex items-center gap-2 p-2 rounded-lg hover:bg-secondary transition-colors"
+                >
+                  {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                  <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
+                </button>
                 <Button variant="ghost" asChild className="justify-start">
                   <Link to="/login">Sign In</Link>
                 </Button>

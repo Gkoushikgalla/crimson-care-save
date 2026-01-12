@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Heart,
   Droplets,
@@ -29,6 +30,35 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import DonationCentersMap from "@/components/maps/DonationCentersMap";
+
+// Reusable setting toggle component
+const SettingToggle = ({ 
+  label, 
+  description, 
+  defaultChecked = false 
+}: { 
+  label: string; 
+  description: string; 
+  defaultChecked?: boolean;
+}) => {
+  const [checked, setChecked] = useState(defaultChecked);
+  
+  return (
+    <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border/50">
+      <div className="flex-1 pr-4">
+        <p className="font-medium text-foreground">{label}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <Switch 
+        checked={checked} 
+        onCheckedChange={(value) => {
+          setChecked(value);
+          toast.success(`${label} ${value ? "enabled" : "disabled"}`);
+        }}
+      />
+    </div>
+  );
+};
 
 const DonorDashboard = () => {
   const navigate = useNavigate();
@@ -392,16 +422,55 @@ const DonorDashboard = () => {
             <h2 className="text-2xl font-display font-bold">Settings</h2>
             <Card className="shadow-card">
               <CardHeader>
-                <CardTitle>Notifications</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" />
+                  Notifications
+                </CardTitle>
                 <CardDescription>Manage how you receive reminders and SOS alerts.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {["SOS Alerts", "Donation Reminders", "Email Updates"].map((label) => (
-                  <div key={label} className="flex items-center justify-between p-3 rounded-lg bg-secondary/40">
-                    <span className="font-medium">{label}</span>
-                    <Button variant="outline" size="sm">Toggle</Button>
-                  </div>
-                ))}
+              <CardContent className="space-y-4">
+                <SettingToggle 
+                  label="SOS Alerts" 
+                  description="Get notified about emergency blood requests in your area"
+                  defaultChecked={true}
+                />
+                <SettingToggle 
+                  label="Donation Reminders" 
+                  description="Remind me when I'm eligible to donate again"
+                  defaultChecked={true}
+                />
+                <SettingToggle 
+                  label="Email Updates" 
+                  description="Receive newsletters and platform updates via email"
+                  defaultChecked={false}
+                />
+                <SettingToggle 
+                  label="SMS Notifications" 
+                  description="Get text messages for urgent requests"
+                  defaultChecked={true}
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-primary" />
+                  Privacy
+                </CardTitle>
+                <CardDescription>Control your profile visibility and data sharing.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <SettingToggle 
+                  label="Profile Visibility" 
+                  description="Allow hospitals to see your profile when matching donors"
+                  defaultChecked={true}
+                />
+                <SettingToggle 
+                  label="Location Sharing" 
+                  description="Share your approximate location for better matching"
+                  defaultChecked={true}
+                />
               </CardContent>
             </Card>
           </div>
