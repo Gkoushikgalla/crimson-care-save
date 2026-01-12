@@ -23,6 +23,7 @@ interface SOSContextType {
   requests: SOSRequest[];
   createRequest: (request: Omit<SOSRequest, "id" | "createdAt" | "matchedDonors" | "confirmedDonors" | "status">) => SOSRequest;
   updateRequest: (id: string, updates: Partial<SOSRequest>) => void;
+  deleteRequest: (id: string) => void;
   getActiveRequests: () => SOSRequest[];
   getRequestsByHospital: (hospitalName: string) => SOSRequest[];
 }
@@ -68,8 +69,13 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  const deleteRequest = (id: string) => {
+    setRequests((prev) => prev.filter((req) => req.id !== id));
+  };
+
   const getActiveRequests = () => {
-    return requests.filter((req) => req.status !== "fulfilled" && req.status !== "cancelled");
+    // Filter out fulfilled and cancelled requests - they should not show in active alerts
+    return requests.filter((req) => req.status === "searching" || req.status === "in_progress");
   };
 
   const getRequestsByHospital = (hospitalName: string) => {
@@ -82,6 +88,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
         requests,
         createRequest,
         updateRequest,
+        deleteRequest,
         getActiveRequests,
         getRequestsByHospital,
       }}

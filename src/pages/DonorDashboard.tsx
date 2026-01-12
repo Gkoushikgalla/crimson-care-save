@@ -105,9 +105,21 @@ const DonorDashboard = () => {
   const donorId = user?.email || "";
 
   // Get completed donations count from context for accurate count
-  const completedDonationsCount = useMemo(() => {
-    return getCompletedDonationsByDonor(donorId).length;
+  const completedDonations = useMemo(() => {
+    return getCompletedDonationsByDonor(donorId);
   }, [getCompletedDonationsByDonor, donorId]);
+
+  const completedDonationsCount = completedDonations.length;
+
+  // Get the last donation date from completed donations
+  const lastDonationFromContext = useMemo(() => {
+    if (completedDonations.length === 0) return null;
+    const sorted = [...completedDonations].sort(
+      (a, b) => new Date(b.completedAt || b.donatedAt).getTime() - new Date(a.completedAt || a.donatedAt).getTime()
+    );
+    const lastDate = sorted[0]?.completedAt || sorted[0]?.donatedAt;
+    return lastDate ? new Date(lastDate).toLocaleDateString() : null;
+  }, [completedDonations]);
 
   const donor = useMemo(() => {
     // Blood type should always come from user registration - never show "Unknown"
@@ -129,6 +141,9 @@ const DonorDashboard = () => {
       if (pts >= 200) return "Bronze Donor";
       return "New Donor";
     };
+
+    // Use context last donation date, fallback to donorStats
+    const lastDonation = lastDonationFromContext || donorStats?.lastDonation || null;
     
     return {
       name: user?.name || "Donor",
@@ -137,13 +152,13 @@ const DonorDashboard = () => {
       phone: user?.phone || "",
       apaarId: user?.apaarId || "",
       totalDonations: totalDonations,
-      lastDonation: donorStats?.lastDonation || null,
+      lastDonation: lastDonation,
       nextEligible: donorStats?.nextEligible || new Date().toISOString().split("T")[0],
       points: points,
       level: getLevel(points),
-      isEligible: !donorStats?.lastDonation || true, // New users are eligible
+      isEligible: !lastDonation || true, // New users are eligible
     };
-  }, [user, donorStats, completedDonationsCount]);
+  }, [user, donorStats, completedDonationsCount, lastDonationFromContext]);
 
   const [profile, setProfile] = useState({
     name: donor.name,

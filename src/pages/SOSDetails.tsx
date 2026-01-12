@@ -37,7 +37,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const SOSDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { requests, updateRequest } = useSOS();
+  const { requests, updateRequest, deleteRequest } = useSOS();
   const { createDonation, completeDonation, getDonationsBySOS } = useDonation();
   const { user, updateDonorStats } = useAuth();
 
@@ -156,10 +156,17 @@ const SOSDetails = () => {
     
     const completedCount = donations.filter(d => d.status === "completed").length + 1;
     if (completedCount >= request.units) {
+      // Mark as fulfilled and remove from active requests
       updateRequest(request.id, { status: "fulfilled" });
+      toast.success("Request fulfilled! All units donated. This request will be removed from active alerts.");
+      
+      // Navigate back after a short delay
+      setTimeout(() => {
+        navigate(-1);
+      }, 1500);
+    } else {
+      toast.success("Donation marked as complete! Donor stats updated.");
     }
-    
-    toast.success("Donation marked as complete! Donor stats updated.");
   };
 
   const updateDonorStatsForDonor = (donation: Donation) => {
