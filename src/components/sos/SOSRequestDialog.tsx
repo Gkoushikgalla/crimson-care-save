@@ -46,7 +46,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
     notes: "",
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validate required fields
     if (!formData.patientName.trim()) {
       toast.error("Patient name is required");
@@ -77,7 +77,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
       }
     }
 
-    const request = createRequest({
+    const request = await createRequest({
       patientName: formData.patientName.trim(),
       bloodType: formData.bloodType,
       units: parseInt(formData.units),
