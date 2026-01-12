@@ -6,9 +6,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Heart, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+
+const getDashboardPath = (role?: string) => {
+  if (role === "hospital") return "/dashboard/hospital";
+  if (role === "bloodbank") return "/dashboard/bloodbank";
+  if (role === "admin") return "/dashboard/admin";
+  return "/dashboard/donor";
+};
 
 const Login = () => {
   const navigate = useNavigate();
+  const { user, login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,37 +29,55 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate login - will be connected to backend
+    // Demo login: if a user already registered, continue as them.
     setTimeout(() => {
       setIsLoading(false);
+
+      if (user) {
+        toast.success("Welcome back!");
+        navigate(getDashboardPath(user.role));
+        return;
+      }
+
+      const inferredName = formData.email?.includes("@")
+        ? formData.email.split("@")[0]
+        : "Donor";
+
+      login({
+        id: Math.random().toString(36).slice(2),
+        name: inferredName,
+        email: formData.email,
+        phone: "",
+        role: "donor",
+        bloodType: "O+",
+      });
+
       toast.success("Login successful!");
-      navigate("/dashboard");
-    }, 1500);
+      navigate("/dashboard/donor");
+    }, 700);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-mesh flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: "1.5s" }} />
       </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <Heart className="h-10 w-10 text-primary fill-primary" />
+        <Link to="/" className="flex items-center justify-center gap-2 mb-8 group">
+          <Heart className="h-10 w-10 text-primary fill-primary group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-display font-bold">
             Crimson<span className="text-primary">Care</span>
           </span>
         </Link>
 
-        <Card className="border-border/50 shadow-xl">
+        <Card className="glass-strong shadow-card">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-display">Welcome back</CardTitle>
-            <CardDescription>
-              Sign in to your account to continue
-            </CardDescription>
+            <CardDescription>Sign in to your account to continue</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -73,10 +100,7 @@ const Login = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm text-primary hover:underline"
-                  >
+                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                     Forgot password?
                   </Link>
                 </div>
@@ -101,14 +125,8 @@ const Login = () => {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                variant="hero"
-                size="lg"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? "Signing in..." : "Sign In"}
+              <Button type="submit" variant="hero" size="lg" className="w-full" disabled={isLoading}>
+                {isLoading ? "Signing in..." : user ? "Continue" : "Sign In"}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
@@ -121,13 +139,6 @@ const Login = () => {
             </div>
           </CardContent>
         </Card>
-
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          By continuing, you agree to our{" "}
-          <Link to="#" className="text-primary hover:underline">Terms of Service</Link>
-          {" "}and{" "}
-          <Link to="#" className="text-primary hover:underline">Privacy Policy</Link>
-        </p>
       </div>
     </div>
   );
