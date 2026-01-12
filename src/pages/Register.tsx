@@ -29,7 +29,7 @@ const getDashboardPath = (role: string) => {
 
 const Register = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { register } = useAuth();
   const [searchParams] = useSearchParams();
   const initialRole = searchParams.get("role") || "donor";
 
@@ -43,13 +43,9 @@ const Register = () => {
     phone: "",
     password: "",
     confirmPassword: "",
-    // Donor
     bloodType: "",
-    // Hospital
     hospitalName: "",
-    // Blood Bank
     bloodBankName: "",
-    // Shared
     licenseNumber: "",
   });
 
@@ -71,6 +67,11 @@ const Register = () => {
       return;
     }
 
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
     if (formData.role === "donor" && !formData.bloodType) {
       toast.error("Please select your blood type");
       return;
@@ -88,34 +89,39 @@ const Register = () => {
 
     setIsLoading(true);
 
-    setTimeout(() => {
-      setIsLoading(false);
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const id =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : Math.random().toString(36).slice(2);
+    const result = register({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      password: formData.password,
+      role: formData.role as "donor" | "hospital" | "bloodbank" | "admin",
+      bloodType: formData.role === "donor" ? formData.bloodType : undefined,
+      hospitalName: formData.role === "hospital" ? formData.hospitalName : undefined,
+      bloodBankName: formData.role === "bloodbank" ? formData.bloodBankName : undefined,
+      licenseNumber: formData.role !== "donor" ? formData.licenseNumber : undefined,
+    });
 
-      login({
-        id,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role as any,
-        bloodType: formData.role === "donor" ? formData.bloodType : undefined,
-        hospitalName: formData.role === "hospital" ? formData.hospitalName : undefined,
-        bloodBankName: formData.role === "bloodbank" ? formData.bloodBankName : undefined,
-        licenseNumber: formData.role !== "donor" ? formData.licenseNumber : undefined,
-      });
+    setIsLoading(false);
 
-      if (formData.role === "hospital" || formData.role === "bloodbank") {
-        toast.success("Registration submitted! You can explore the dashboard while verification is pending.");
-      } else {
-        toast.success("Registration successful! Welcome to CrimsonCare.");
-      }
+    if (!result.success) {
+      toast.error(result.error || "Registration failed");
+      return;
+    }
 
-      navigate(getDashboardPath(formData.role));
-    }, 900);
+    // Show success message
+    if (formData.role === "hospital" || formData.role === "bloodbank") {
+      toast.success("Registration submitted! Awaiting admin verification.");
+    } else {
+      toast.success("🎉 Welcome to CrimsonCare! Thank you for becoming a donor.");
+    }
+
+    // Mock: Show email/SMS notification (in production, this would be sent from backend)
+    toast.info("📧 Confirmation email sent to " + formData.email, { duration: 5000 });
+    
+    navigate(getDashboardPath(formData.role));
   };
 
   return (
