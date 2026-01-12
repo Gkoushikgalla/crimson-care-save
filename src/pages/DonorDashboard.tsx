@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSOS } from "@/contexts/SOSContext";
+import { useDonation } from "@/contexts/DonationContext";
 import DonationCentersMap from "@/components/maps/DonationCentersMap";
 
 // Reusable setting toggle component
@@ -65,6 +66,7 @@ const DonorDashboard = () => {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const { getActiveRequests } = useSOS();
+  const { getDonationsByDonor } = useDonation();
   const [activeTab, setActiveTab] = useState<
     "overview" | "profile" | "history" | "rewards" | "alerts" | "settings"
   >("overview");
@@ -145,8 +147,22 @@ const DonorDashboard = () => {
     },
   ];
 
-  // Get donation history from user stats (empty for new users)
-  const donationHistory = donorStats?.donationHistory || [];
+  // Get donation history from context first, fallback to user stats
+  const donorId = user?.email || "";
+  const contextDonations = useMemo(() => getDonationsByDonor(donorId), [getDonationsByDonor, donorId]);
+  
+  const donationHistory = useMemo(() => {
+    if (contextDonations.length > 0) {
+      return contextDonations.map(d => ({
+        id: d.id,
+        date: new Date(d.donatedAt).toLocaleDateString(),
+        location: d.hospitalName,
+        units: d.units,
+        status: d.status,
+      }));
+    }
+    return donorStats?.donationHistory || [];
+  }, [contextDonations, donorStats]);
 
   // Get badges from user stats
   const badges = donorStats?.badges || [
@@ -426,7 +442,7 @@ const DonorDashboard = () => {
                       <Button variant="hero" size="sm" className="flex-1" onClick={() => handleAccept(alert.id)}>
                         Accept
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/sos/${alert.id}`)}>
                         Details
                       </Button>
                     </div>
