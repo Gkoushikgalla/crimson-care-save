@@ -1,15 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Heart, ArrowRight, Droplets, Users, Clock } from "lucide-react";
+import heroBloodBg from "@/assets/hero-blood-bg.png";
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-hero pt-16">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-accent/30 rounded-full blur-3xl" />
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${heroBloodBg})` }}
+      >
+        {/* Overlay for readability */}
+        <div className="absolute inset-0 bg-background/85 dark:bg-background/90" />
       </div>
 
       {/* Floating Blood Cells Animation */}
