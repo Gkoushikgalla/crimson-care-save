@@ -43,11 +43,18 @@ const DonorDashboard = () => {
   const donorStats = user?.donorStats;
 
   const donor = useMemo(() => {
+    // Blood type should always come from user registration - never show "Unknown"
+    const bloodType = user?.bloodType;
+    if (!bloodType && user?.role === "donor") {
+      console.warn("Donor missing blood type - this should be set during registration");
+    }
+    
     return {
       name: user?.name || "Donor",
-      bloodType: user?.bloodType || "Unknown",
+      bloodType: bloodType || "N/A",
       email: user?.email || "",
       phone: user?.phone || "",
+      apaarId: user?.apaarId || "",
       totalDonations: donorStats?.totalDonations || 0,
       lastDonation: donorStats?.lastDonation || null,
       nextEligible: donorStats?.nextEligible || new Date().toISOString().split("T")[0],

@@ -44,6 +44,7 @@ const Register = () => {
     password: "",
     confirmPassword: "",
     bloodType: "",
+    apaarId: "",
     hospitalName: "",
     bloodBankName: "",
     licenseNumber: "",
@@ -99,6 +100,7 @@ const Register = () => {
       password: formData.password,
       role: formData.role as "donor" | "hospital" | "bloodbank" | "admin",
       bloodType: formData.role === "donor" ? formData.bloodType : undefined,
+      apaarId: formData.role === "donor" && formData.apaarId ? formData.apaarId : undefined,
       hospitalName: formData.role === "hospital" ? formData.hospitalName : undefined,
       bloodBankName: formData.role === "bloodbank" ? formData.bloodBankName : undefined,
       licenseNumber: formData.role !== "donor" ? formData.licenseNumber : undefined,
@@ -333,23 +335,38 @@ const Register = () => {
                 </div>
 
                 {formData.role === "donor" && (
-                  <div className="space-y-2">
-                    <Label>Blood Type</Label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {bloodTypes.map((type) => (
-                        <Button
-                          key={type}
-                          type="button"
-                          variant={formData.bloodType === type ? "hero" : "outline"}
-                          size="sm"
-                          onClick={() => setFormData({ ...formData, bloodType: type })}
-                          className="font-bold"
-                        >
-                          {type}
-                        </Button>
-                      ))}
+                  <>
+                    <div className="space-y-2">
+                      <Label>Blood Type <span className="text-destructive">*</span></Label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {bloodTypes.map((type) => (
+                          <Button
+                            key={type}
+                            type="button"
+                            variant={formData.bloodType === type ? "hero" : "outline"}
+                            size="sm"
+                            onClick={() => setFormData({ ...formData, bloodType: type })}
+                            className="font-bold"
+                          >
+                            {type}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="apaarId">APAAR ID <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                      <Input
+                        id="apaarId"
+                        placeholder="Enter your APAAR ID (if available)"
+                        value={formData.apaarId}
+                        onChange={(e) => setFormData({ ...formData, apaarId: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Automated Permanent Academic Account Registry ID
+                      </p>
+                    </div>
+                  </>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
