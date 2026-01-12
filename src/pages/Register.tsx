@@ -175,7 +175,7 @@ const Register = () => {
     // Simulate network delay with loading quotes
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const result = register({
+    const result = await register({
       name: formData.name,
       email: formData.email.trim().toLowerCase(),
       phone: formData.phone,

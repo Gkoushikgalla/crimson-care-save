@@ -32,7 +32,7 @@ const Login = () => {
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 600));
 
-    const result = login(formData.email, formData.password);
+    const result = await login(formData.email, formData.password);
     setIsLoading(false);
 
     if (!result.success) {
