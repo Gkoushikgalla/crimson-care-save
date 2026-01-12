@@ -142,7 +142,7 @@ const BloodBankDashboard = () => {
                     <div key={item.type} className="flex items-center justify-between p-3 rounded-lg bg-background">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.status === "critical" ? "bg-destructive" : "bg-warning"}`}>
-                          <span className="font-bold text-white">{item.type}</span>
+                          <span className="font-bold text-primary-foreground">{item.type}</span>
                         </div>
                         <div>
                           <p className="font-medium">{item.type} Blood</p>

@@ -5,14 +5,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Heart, Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff, Building2, Droplets } from "lucide-react";
+import {
+  Heart,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Building2,
+  Droplets,
+  Warehouse,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+
+const getDashboardPath = (role: string) => {
+  if (role === "hospital") return "/dashboard/hospital";
+  if (role === "bloodbank") return "/dashboard/bloodbank";
+  return "/dashboard/donor";
+};
 
 const Register = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [searchParams] = useSearchParams();
   const initialRole = searchParams.get("role") || "donor";
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -23,36 +43,17 @@ const Register = () => {
     phone: "",
     password: "",
     confirmPassword: "",
-    // Donor specific
+    // Donor
     bloodType: "",
-    // Hospital specific
+    // Hospital
     hospitalName: "",
+    // Blood Bank
+    bloodBankName: "",
+    // Shared
     licenseNumber: "",
   });
 
   const bloodTypes = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-
-    setIsLoading(true);
-
-    // Simulate registration - will be connected to backend
-    setTimeout(() => {
-      setIsLoading(false);
-      if (formData.role === "hospital") {
-        toast.success("Registration submitted! Awaiting admin verification.");
-      } else {
-        toast.success("Registration successful! Welcome to CrimsonCare.");
-      }
-      navigate("/login");
-    }, 1500);
-  };
 
   const nextStep = () => {
     if (!formData.role) {
@@ -62,24 +63,79 @@ const Register = () => {
     setStep(2);
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (formData.role === "donor" && !formData.bloodType) {
+      toast.error("Please select your blood type");
+      return;
+    }
+
+    if (formData.role === "hospital" && (!formData.hospitalName || !formData.licenseNumber)) {
+      toast.error("Please enter hospital name and license number");
+      return;
+    }
+
+    if (formData.role === "bloodbank" && (!formData.bloodBankName || !formData.licenseNumber)) {
+      toast.error("Please enter blood bank name and license number");
+      return;
+    }
+
+    setIsLoading(true);
+
+    setTimeout(() => {
+      setIsLoading(false);
+
+      const id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2);
+
+      login({
+        id,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        role: formData.role as any,
+        bloodType: formData.role === "donor" ? formData.bloodType : undefined,
+        hospitalName: formData.role === "hospital" ? formData.hospitalName : undefined,
+        bloodBankName: formData.role === "bloodbank" ? formData.bloodBankName : undefined,
+        licenseNumber: formData.role !== "donor" ? formData.licenseNumber : undefined,
+      });
+
+      if (formData.role === "hospital" || formData.role === "bloodbank") {
+        toast.success("Registration submitted! You can explore the dashboard while verification is pending.");
+      } else {
+        toast.success("Registration successful! Welcome to CrimsonCare.");
+      }
+
+      navigate(getDashboardPath(formData.role));
+    }, 900);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4 py-12">
+    <div className="min-h-screen bg-gradient-mesh flex items-center justify-center p-4 py-12 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: "1.5s" }} />
       </div>
 
-      <div className="w-full max-w-lg relative z-10">
+      <div className="w-full max-w-3xl relative z-10">
         {/* Logo */}
-        <Link to="/" className="flex items-center justify-center gap-2 mb-8">
-          <Heart className="h-10 w-10 text-primary fill-primary" />
+        <Link to="/" className="flex items-center justify-center gap-2 mb-8 group">
+          <Heart className="h-10 w-10 text-primary fill-primary group-hover:scale-110 transition-transform" />
           <span className="text-2xl font-display font-bold">
             Crimson<span className="text-primary">Care</span>
           </span>
         </Link>
 
-        <Card className="border-border/50 shadow-xl">
+        <Card className="glass-strong shadow-card">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-display">Create an account</CardTitle>
             <CardDescription>
@@ -92,13 +148,14 @@ const Register = () => {
                 <RadioGroup
                   value={formData.role}
                   onValueChange={(value) => setFormData({ ...formData, role: value })}
-                  className="grid grid-cols-2 gap-4"
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4"
                 >
+                  {/* Donor */}
                   <Label
                     htmlFor="donor"
-                    className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md ${
                       formData.role === "donor"
-                        ? "border-primary bg-accent"
+                        ? "border-primary bg-accent shadow-crimson"
                         : "border-border hover:border-primary/50"
                     }`}
                   >
@@ -112,11 +169,12 @@ const Register = () => {
                     </div>
                   </Label>
 
+                  {/* Hospital */}
                   <Label
                     htmlFor="hospital"
-                    className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md ${
                       formData.role === "hospital"
-                        ? "border-primary bg-accent"
+                        ? "border-primary bg-accent shadow-crimson"
                         : "border-border hover:border-primary/50"
                     }`}
                   >
@@ -129,14 +187,28 @@ const Register = () => {
                       <p className="text-xs text-muted-foreground">Request blood supplies</p>
                     </div>
                   </Label>
+
+                  {/* Blood Bank */}
+                  <Label
+                    htmlFor="bloodbank"
+                    className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md ${
+                      formData.role === "bloodbank"
+                        ? "border-primary bg-accent shadow-crimson"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <RadioGroupItem value="bloodbank" id="bloodbank" className="sr-only" />
+                    <div className="w-14 h-14 rounded-full bg-gradient-crimson flex items-center justify-center">
+                      <Warehouse className="h-7 w-7 text-primary-foreground" />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-semibold">Blood Bank</p>
+                      <p className="text-xs text-muted-foreground">Manage blood inventory</p>
+                    </div>
+                  </Label>
                 </RadioGroup>
 
-                <Button
-                  onClick={nextStep}
-                  variant="hero"
-                  size="lg"
-                  className="w-full"
-                >
+                <Button onClick={nextStep} variant="hero" size="lg" className="w-full">
                   Continue
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -173,18 +245,68 @@ const Register = () => {
                   </>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="name">{formData.role === "hospital" ? "Contact Person Name" : "Full Name"}</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="name"
-                      placeholder="Enter your full name"
-                      className="pl-10"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
+                {formData.role === "bloodbank" && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="bloodBankName">Blood Bank Name</Label>
+                      <div className="relative">
+                        <Warehouse className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="bloodBankName"
+                          placeholder="Enter blood bank name"
+                          className="pl-10"
+                          value={formData.bloodBankName}
+                          onChange={(e) => setFormData({ ...formData, bloodBankName: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="licenseNumber">License Number</Label>
+                      <Input
+                        id="licenseNumber"
+                        placeholder="Blood bank license number"
+                        value={formData.licenseNumber}
+                        onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">
+                      {formData.role === "hospital" ? "Contact Person Name" : formData.role === "bloodbank" ? "Manager Name" : "Full Name"}
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="name"
+                        placeholder="Enter your full name"
+                        className="pl-10"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+1 (555) 000-0000"
+                        className="pl-10"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -204,22 +326,6 @@ const Register = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1 (555) 000-0000"
-                      className="pl-10"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
                 {formData.role === "donor" && (
                   <div className="space-y-2">
                     <Label>Blood Type</Label>
@@ -231,6 +337,7 @@ const Register = () => {
                           variant={formData.bloodType === type ? "hero" : "outline"}
                           size="sm"
                           onClick={() => setFormData({ ...formData, bloodType: type })}
+                          className="font-bold"
                         >
                           {type}
                         </Button>
@@ -239,69 +346,59 @@ const Register = () => {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Create a password"
-                      className="pl-10 pr-10"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a password"
+                        className="pl-10 pr-10"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm your password"
-                      className="pl-10"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      required
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="Confirm your password"
+                        className="pl-10"
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    className="flex-1"
-                    onClick={() => setStep(1)}
-                  >
+                  <Button type="button" variant="outline" size="lg" className="flex-1" onClick={() => setStep(1)}>
                     Back
                   </Button>
-                  <Button
-                    type="submit"
-                    variant="hero"
-                    size="lg"
-                    className="flex-1"
-                    disabled={isLoading}
-                  >
+                  <Button type="submit" variant="hero" size="lg" className="flex-1" disabled={isLoading}>
                     {isLoading ? "Creating..." : "Create Account"}
                   </Button>
                 </div>
 
-                {formData.role === "hospital" && (
+                {(formData.role === "hospital" || formData.role === "bloodbank") && (
                   <p className="text-xs text-center text-muted-foreground">
-                    Hospital accounts require admin verification before activation
+                    {formData.role === "hospital" ? "Hospital" : "Blood Bank"} accounts may require verification before full activation.
                   </p>
                 )}
               </form>
