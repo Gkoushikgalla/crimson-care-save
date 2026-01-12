@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSOS, SOSRequest } from "@/contexts/SOSContext";
-import { useDonation } from "@/contexts/DonationContext";
+import { useDonation, Donation } from "@/contexts/DonationContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 const SOSDetails = () => {
@@ -30,7 +30,7 @@ const SOSDetails = () => {
   const navigate = useNavigate();
   const { requests, updateRequest } = useSOS();
   const { createDonation, completeDonation, getDonationsBySOS } = useDonation();
-  const { user } = useAuth();
+  const { user, updateDonorStats } = useAuth();
 
   const request = useMemo(() => {
     return requests.find((r) => r.id === id);
@@ -102,14 +102,109 @@ const SOSDetails = () => {
   };
 
   const handleMarkComplete = (donationId: string) => {
-    completeDonation(donationId);
+    completeDonation(donationId, (completedDonation: Donation) => {
+      // Update donor stats when donation is completed
+      updateDonorStatsForDonor(completedDonation);
+    });
     
     const completedCount = donations.filter(d => d.status === "completed").length + 1;
     if (completedCount >= request.units) {
       updateRequest(request.id, { status: "fulfilled" });
     }
     
-    toast.success("Donation marked as complete!");
+    toast.success("Donation marked as complete! Donor stats updated.");
+  };
+
+  const updateDonorStatsForDonor = (donation: Donation) => {
+    // Get the donor from localStorage and update their stats
+    const storedUsers = localStorage.getItem("crimsoncare_users");
+    if (!storedUsers) return;
+
+    const users = JSON.parse(storedUsers);
+    const donorIndex = users.findIndex((u: any) => u.email === donation.donorId);
+    
+    if (donorIndex === -1) return;
+
+    const donor = users[donorIndex];
+    const currentStats = donor.donorStats || {
+      totalDonations: 0,
+      lastDonation: null,
+      nextEligible: null,
+      points: 0,
+      level: "New Donor",
+      donationHistory: [],
+      badges: [
+        { name: "First Donation", icon: "🩸", earned: false },
+        { name: "5 Donations", icon: "⭐", earned: false },
+        { name: "10 Donations", icon: "🏆", earned: false },
+        { name: "Life Saver", icon: "❤️", earned: false },
+        { name: "25 Donations", icon: "👑", earned: false },
+      ],
+    };
+
+    const newTotalDonations = currentStats.totalDonations + 1;
+    const newPoints = currentStats.points + 200; // 200 points per donation
+    
+    // Calculate new level based on points
+    const getLevel = (points: number) => {
+      if (points >= 5000) return "Legend";
+      if (points >= 3000) return "Platinum Donor";
+      if (points >= 1500) return "Gold Donor";
+      if (points >= 500) return "Silver Donor";
+      if (points >= 200) return "Bronze Donor";
+      return "New Donor";
+    };
+
+    // Update badges based on donation count
+    const updatedBadges = currentStats.badges.map((badge: any) => {
+      if (badge.name === "First Donation" && newTotalDonations >= 1) {
+        return { ...badge, earned: true };
+      }
+      if (badge.name === "5 Donations" && newTotalDonations >= 5) {
+        return { ...badge, earned: true };
+      }
+      if (badge.name === "10 Donations" && newTotalDonations >= 10) {
+        return { ...badge, earned: true };
+      }
+      if (badge.name === "Life Saver" && newTotalDonations >= 15) {
+        return { ...badge, earned: true };
+      }
+      if (badge.name === "25 Donations" && newTotalDonations >= 25) {
+        return { ...badge, earned: true };
+      }
+      return badge;
+    });
+
+    // Calculate next eligible date (56 days / 8 weeks after donation)
+    const nextEligible = new Date();
+    nextEligible.setDate(nextEligible.getDate() + 56);
+
+    const updatedStats = {
+      ...currentStats,
+      totalDonations: newTotalDonations,
+      lastDonation: donation.completedAt || new Date().toISOString(),
+      nextEligible: nextEligible.toISOString().split("T")[0],
+      points: newPoints,
+      level: getLevel(newPoints),
+      donationHistory: [
+        {
+          id: donation.id,
+          date: new Date(donation.completedAt || donation.donatedAt).toLocaleDateString(),
+          location: donation.hospitalName,
+          units: donation.units,
+        },
+        ...currentStats.donationHistory,
+      ],
+      badges: updatedBadges,
+    };
+
+    users[donorIndex] = { ...donor, donorStats: updatedStats };
+    localStorage.setItem("crimsoncare_users", JSON.stringify(users));
+
+    // If current user is the donor, update their session too
+    if (user && user.email === donation.donorId) {
+      updateDonorStats(updatedStats);
+    }
   };
 
   const getUrgencyColor = (urgency: string) => {

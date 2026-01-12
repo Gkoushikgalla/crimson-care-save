@@ -66,7 +66,7 @@ const DonorDashboard = () => {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
   const { getActiveRequests } = useSOS();
-  const { getDonationsByDonor } = useDonation();
+  const { getDonationsByDonor, getCompletedDonationsByDonor } = useDonation();
   const [activeTab, setActiveTab] = useState<
     "overview" | "profile" | "history" | "rewards" | "alerts" | "settings"
   >("overview");
@@ -101,12 +101,34 @@ const DonorDashboard = () => {
   // Get donor stats from user (defaults to empty for new users)
   const donorStats = user?.donorStats;
 
+  // Get donation history from context first, fallback to user stats
+  const donorId = user?.email || "";
+
+  // Get completed donations count from context for accurate count
+  const completedDonationsCount = useMemo(() => {
+    return getCompletedDonationsByDonor(donorId).length;
+  }, [getCompletedDonationsByDonor, donorId]);
+
   const donor = useMemo(() => {
     // Blood type should always come from user registration - never show "Unknown"
     const bloodType = user?.bloodType;
     if (!bloodType && user?.role === "donor") {
       console.warn("Donor missing blood type - this should be set during registration");
     }
+
+    // Use the higher of donorStats or context count (in case of sync)
+    const totalDonations = Math.max(donorStats?.totalDonations || 0, completedDonationsCount);
+    const points = totalDonations * 200; // 200 points per donation
+    
+    // Calculate level based on points
+    const getLevel = (pts: number) => {
+      if (pts >= 5000) return "Legend";
+      if (pts >= 3000) return "Platinum Donor";
+      if (pts >= 1500) return "Gold Donor";
+      if (pts >= 500) return "Silver Donor";
+      if (pts >= 200) return "Bronze Donor";
+      return "New Donor";
+    };
     
     return {
       name: user?.name || "Donor",
@@ -114,14 +136,14 @@ const DonorDashboard = () => {
       email: user?.email || "",
       phone: user?.phone || "",
       apaarId: user?.apaarId || "",
-      totalDonations: donorStats?.totalDonations || 0,
+      totalDonations: totalDonations,
       lastDonation: donorStats?.lastDonation || null,
       nextEligible: donorStats?.nextEligible || new Date().toISOString().split("T")[0],
-      points: donorStats?.points || 0,
-      level: donorStats?.level || "New Donor",
+      points: points,
+      level: getLevel(points),
       isEligible: !donorStats?.lastDonation || true, // New users are eligible
     };
-  }, [user, donorStats]);
+  }, [user, donorStats, completedDonationsCount]);
 
   const [profile, setProfile] = useState({
     name: donor.name,
@@ -148,7 +170,6 @@ const DonorDashboard = () => {
   ];
 
   // Get donation history from context first, fallback to user stats
-  const donorId = user?.email || "";
   const contextDonations = useMemo(() => getDonationsByDonor(donorId), [getDonationsByDonor, donorId]);
   
   const donationHistory = useMemo(() => {
@@ -164,14 +185,22 @@ const DonorDashboard = () => {
     return donorStats?.donationHistory || [];
   }, [contextDonations, donorStats]);
 
-  // Get badges from user stats
-  const badges = donorStats?.badges || [
-    { name: "First Donation", icon: "🩸", earned: false },
-    { name: "5 Donations", icon: "⭐", earned: false },
-    { name: "10 Donations", icon: "🏆", earned: false },
-    { name: "Life Saver", icon: "❤️", earned: false },
-    { name: "25 Donations", icon: "👑", earned: false },
-  ];
+  // Get badges - calculate earned status based on actual donation count
+  const badges = useMemo(() => {
+    const baseBadges = [
+      { name: "First Donation", icon: "🩸", threshold: 1 },
+      { name: "5 Donations", icon: "⭐", threshold: 5 },
+      { name: "10 Donations", icon: "🏆", threshold: 10 },
+      { name: "Life Saver", icon: "❤️", threshold: 15 },
+      { name: "25 Donations", icon: "👑", threshold: 25 },
+    ];
+    
+    return baseBadges.map(badge => ({
+      name: badge.name,
+      icon: badge.icon,
+      earned: donor.totalDonations >= badge.threshold,
+    }));
+  }, [donor.totalDonations]);
 
   const handleLogout = () => {
     logout();
