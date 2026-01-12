@@ -17,14 +17,71 @@ import {
   Building2,
   Droplets,
   Warehouse,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import LoadingWithQuotes from "@/components/ui/LoadingWithQuotes";
 
 const getDashboardPath = (role: string) => {
   if (role === "hospital") return "/dashboard/hospital";
   if (role === "bloodbank") return "/dashboard/bloodbank";
   return "/dashboard/donor";
+};
+
+// List of disposable/temporary email domains to block
+const disposableEmailDomains = [
+  "tempmail.com", "throwaway.com", "mailinator.com", "guerrillamail.com",
+  "10minutemail.com", "fakeinbox.com", "trashmail.com", "yopmail.com",
+  "tempail.com", "getnada.com", "maildrop.cc", "dispostable.com",
+  "temp-mail.org", "fakemailgenerator.com", "emailondeck.com",
+  "mohmal.com", "minutemail.com", "tempr.email", "discard.email",
+  "mailnesia.com", "spamgourmet.com", "mytrashmail.com", "sharklasers.com",
+];
+
+// Validate email format and check for disposable domains
+const validateEmail = (email: string): { valid: boolean; error?: string } => {
+  const trimmedEmail = email.trim().toLowerCase();
+  
+  // Basic email format validation
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(trimmedEmail)) {
+    return { valid: false, error: "Please enter a valid email address" };
+  }
+
+  // Check for disposable email domains
+  const domain = trimmedEmail.split("@")[1];
+  if (disposableEmailDomains.includes(domain)) {
+    return { valid: false, error: "Temporary or disposable emails are not allowed. Please use a permanent email." };
+  }
+
+  // Check for common typos in popular domains
+  const commonDomains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com"];
+  const typoPatterns = [
+    { typo: "gmial.com", correct: "gmail.com" },
+    { typo: "gmal.com", correct: "gmail.com" },
+    { typo: "gamil.com", correct: "gmail.com" },
+    { typo: "yaho.com", correct: "yahoo.com" },
+    { typo: "yahooo.com", correct: "yahoo.com" },
+    { typo: "outloo.com", correct: "outlook.com" },
+    { typo: "hotmal.com", correct: "hotmail.com" },
+  ];
+  
+  const typoMatch = typoPatterns.find(p => domain === p.typo);
+  if (typoMatch) {
+    return { valid: false, error: `Did you mean ${typoMatch.correct}?` };
+  }
+
+  return { valid: true };
+};
+
+// Validate phone number
+const validatePhone = (phone: string): { valid: boolean; error?: string } => {
+  const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+  if (cleanPhone.length < 10) {
+    return { valid: false, error: "Please enter a valid phone number (at least 10 digits)" };
+  }
+  return { valid: true };
 };
 
 const Register = () => {
@@ -36,6 +93,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     role: initialRole,
     name: "",
@@ -52,6 +110,16 @@ const Register = () => {
 
   const bloodTypes = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 
+  const handleEmailChange = (email: string) => {
+    setFormData({ ...formData, email });
+    if (email.includes("@")) {
+      const validation = validateEmail(email);
+      setEmailError(validation.valid ? null : validation.error || null);
+    } else {
+      setEmailError(null);
+    }
+  };
+
   const nextStep = () => {
     if (!formData.role) {
       toast.error("Please select a role");
@@ -62,6 +130,20 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate email
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.valid) {
+      toast.error(emailValidation.error || "Invalid email address");
+      return;
+    }
+
+    // Validate phone
+    const phoneValidation = validatePhone(formData.phone);
+    if (!phoneValidation.valid) {
+      toast.error(phoneValidation.error || "Invalid phone number");
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
@@ -90,12 +172,12 @@ const Register = () => {
 
     setIsLoading(true);
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    // Simulate network delay with loading quotes
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     const result = register({
       name: formData.name,
-      email: formData.email,
+      email: formData.email.trim().toLowerCase(),
       phone: formData.phone,
       password: formData.password,
       role: formData.role as "donor" | "hospital" | "bloodbank" | "admin",
@@ -125,6 +207,19 @@ const Register = () => {
     
     navigate(getDashboardPath(formData.role));
   };
+
+  // Show loading screen with motivational quotes
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-mesh flex items-center justify-center p-4">
+        <Card className="glass-strong shadow-card w-full max-w-md">
+          <CardContent className="py-12">
+            <LoadingWithQuotes message="Creating your account..." />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-mesh flex items-center justify-center p-4 py-12 relative overflow-hidden">
@@ -321,17 +416,23 @@ const Register = () => {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${emailError ? "text-destructive" : "text-muted-foreground"}`} />
                     <Input
                       id="email"
                       type="email"
                       placeholder="name@example.com"
-                      className="pl-10"
+                      className={`pl-10 ${emailError ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => handleEmailChange(e.target.value)}
                       required
                     />
                   </div>
+                  {emailError && (
+                    <div className="flex items-center gap-1.5 text-destructive text-sm">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <span>{emailError}</span>
+                    </div>
+                  )}
                 </div>
 
                 {formData.role === "donor" && (
