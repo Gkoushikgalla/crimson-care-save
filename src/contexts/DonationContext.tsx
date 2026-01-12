@@ -56,7 +56,6 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
       donatedAt: new Date().toISOString(),
       status: "pending",
     };
-
     setDonations((prev) => [newDonation, ...prev]);
     return newDonation;
   };
@@ -64,13 +63,10 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
   const completeDonation = (id: string, onComplete?: (donation: Donation) => void) => {
     setDonations((prev) => {
       const updated = prev.map((d) =>
-        d.id === id
-          ? { ...d, status: "completed" as const, completedAt: new Date().toISOString() }
-          : d
+        d.id === id ? { ...d, status: "completed" as const, completedAt: new Date().toISOString() } : d
       );
       const completedDonation = updated.find((d) => d.id === id);
       if (completedDonation && onComplete) {
-        // Use setTimeout to avoid state update during render
         setTimeout(() => onComplete(completedDonation), 0);
       }
       return updated;
@@ -83,43 +79,19 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  const getDonationsByDonor = (donorId: string) => {
-    return donations.filter((d) => d.donorId === donorId);
-  };
-
-  const getDonationsByHospital = (hospitalName: string) => {
-    return donations.filter((d) => d.hospitalName === hospitalName);
-  };
-
-  const getDonationsByBloodBank = (bloodBankName: string) => {
-    return donations.filter((d) => d.bloodBankName === bloodBankName);
-  };
-
-  const getDonationsBySOS = (sosRequestId: string) => {
-    return donations.filter((d) => d.sosRequestId === sosRequestId);
-  };
-
-  const getCompletedDonations = () => {
-    return donations.filter((d) => d.status === "completed");
-  };
-
-  const getCompletedDonationsByDonor = (donorId: string) => {
-    return donations.filter((d) => d.donorId === donorId && d.status === "completed");
-  };
+  const getDonationsByDonor = (donorId: string) => donations.filter((d) => d.donorId === donorId);
+  const getDonationsByHospital = (hospitalName: string) => donations.filter((d) => d.hospitalName === hospitalName);
+  const getDonationsByBloodBank = (bloodBankName: string) => donations.filter((d) => d.bloodBankName === bloodBankName);
+  const getDonationsBySOS = (sosRequestId: string) => donations.filter((d) => d.sosRequestId === sosRequestId);
+  const getCompletedDonations = () => donations.filter((d) => d.status === "completed");
+  const getCompletedDonationsByDonor = (donorId: string) => donations.filter((d) => d.donorId === donorId && d.status === "completed");
 
   return (
     <DonationContext.Provider
       value={{
-        donations,
-        createDonation,
-        completeDonation,
-        cancelDonation,
-        getDonationsByDonor,
-        getDonationsByHospital,
-        getDonationsByBloodBank,
-        getDonationsBySOS,
-        getCompletedDonations,
-        getCompletedDonationsByDonor,
+        donations, createDonation, completeDonation, cancelDonation,
+        getDonationsByDonor, getDonationsByHospital, getDonationsByBloodBank,
+        getDonationsBySOS, getCompletedDonations, getCompletedDonationsByDonor,
       }}
     >
       {children}
@@ -129,8 +101,6 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
 
 export const useDonation = () => {
   const context = useContext(DonationContext);
-  if (!context) {
-    throw new Error("useDonation must be used within a DonationProvider");
-  }
+  if (!context) throw new Error("useDonation must be used within a DonationProvider");
   return context;
 };

@@ -15,7 +15,7 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  password: string; // For mock auth matching
+  password: string;
   role: "donor" | "hospital" | "bloodbank" | "admin";
   bloodType?: string;
   apaarId?: string;
@@ -37,22 +37,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Get all registered users from localStorage
 const getStoredUsers = (): User[] => {
   const stored = localStorage.getItem("crimsoncare_users");
   return stored ? JSON.parse(stored) : [];
 };
 
-// Save users to localStorage
 const saveUsers = (users: User[]) => {
   localStorage.setItem("crimsoncare_users", JSON.stringify(users));
 };
 
-// Get initial donor stats for new users
 const getInitialDonorStats = (): DonorStats => ({
   totalDonations: 0,
   lastDonation: null,
-  nextEligible: new Date().toISOString().split("T")[0], // Eligible immediately
+  nextEligible: new Date().toISOString().split("T")[0],
   points: 0,
   level: "New Donor",
   donationHistory: [],
@@ -71,11 +68,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Sync current user to localStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem("crimsoncare_current_user", JSON.stringify(user));
-      // Also update in users array
       const users = getStoredUsers();
       const idx = users.findIndex((u) => u.id === user.id);
       if (idx !== -1) {
@@ -89,23 +84,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = (userData: Omit<User, "id" | "createdAt" | "donorStats">) => {
     const users = getStoredUsers();
-    
-    // Check if email already exists
     if (users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase())) {
       return { success: false, error: "Email already registered. Please login instead." };
     }
-
     const newUser: User = {
       ...userData,
       id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
       createdAt: new Date().toISOString(),
       donorStats: userData.role === "donor" ? getInitialDonorStats() : undefined,
     };
-
     users.push(newUser);
     saveUsers(users);
     setUser(newUser);
-    
     return { success: true };
   };
 
@@ -114,34 +104,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const foundUser = users.find(
       (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
     );
-
-    if (!foundUser) {
-      return { success: false, error: "Invalid email or password" };
-    }
-
+    if (!foundUser) return { success: false, error: "Invalid email or password" };
     setUser(foundUser);
     return { success: true };
   };
 
-  const logout = () => {
-    setUser(null);
-  };
+  const logout = () => setUser(null);
 
   const updateUser = (data: Partial<User>) => {
-    if (user) {
-      const updated = { ...user, ...data };
-      setUser(updated);
-    }
+    if (user) setUser({ ...user, ...data });
   };
 
   const updateDonorStats = (stats: Partial<DonorStats>) => {
-    if (user && user.donorStats) {
-      const updated = {
-        ...user,
-        donorStats: { ...user.donorStats, ...stats },
-      };
-      setUser(updated);
-    }
+    if (user?.donorStats) setUser({ ...user, donorStats: { ...user.donorStats, ...stats } });
   };
 
   return (
@@ -153,8 +128,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
