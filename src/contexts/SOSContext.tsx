@@ -15,8 +15,8 @@ export interface SOSRequest {
   matchedDonors: number;
   confirmedDonors: number;
   createdAt: string;
-  createdBy: string; // user ID
-  source: "hospital" | "public"; // hospital dashboard or public emergency request
+  createdBy: string;
+  source: "hospital" | "public";
 }
 
 interface SOSContextType {
@@ -42,7 +42,6 @@ const saveRequests = (requests: SOSRequest[]) => {
 export const SOSProvider = ({ children }: { children: ReactNode }) => {
   const [requests, setRequests] = useState<SOSRequest[]>(() => getStoredRequests());
 
-  // Sync to localStorage
   useEffect(() => {
     saveRequests(requests);
   }, [requests]);
@@ -55,10 +54,9 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
       id: crypto.randomUUID?.() || Math.random().toString(36).slice(2),
       createdAt: new Date().toISOString(),
       status: "searching",
-      matchedDonors: Math.floor(Math.random() * 10) + 3, // Mock: 3-12 matched donors
+      matchedDonors: Math.floor(Math.random() * 10) + 3,
       confirmedDonors: 0,
     };
-
     setRequests((prev) => [newRequest, ...prev]);
     return newRequest;
   };
@@ -74,7 +72,6 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getActiveRequests = () => {
-    // Filter out fulfilled and cancelled requests - they should not show in active alerts
     return requests.filter((req) => req.status === "searching" || req.status === "in_progress");
   };
 
