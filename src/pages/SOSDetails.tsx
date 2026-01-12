@@ -3,8 +3,17 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Heart,
   ArrowLeft,
@@ -32,6 +41,9 @@ const SOSDetails = () => {
   const { createDonation, completeDonation, getDonationsBySOS } = useDonation();
   const { user, updateDonorStats } = useAuth();
 
+  const [showMismatchDialog, setShowMismatchDialog] = useState(false);
+  const [mismatchConfirmed, setMismatchConfirmed] = useState(false);
+
   const request = useMemo(() => {
     return requests.find((r) => r.id === id);
   }, [requests, id]);
@@ -40,6 +52,26 @@ const SOSDetails = () => {
     if (!id) return [];
     return getDonationsBySOS(id);
   }, [getDonationsBySOS, id]);
+
+  // Blood type compatibility chart
+  const bloodCompatibility: Record<string, string[]> = {
+    "O-": ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"], // Universal donor
+    "O+": ["O+", "A+", "B+", "AB+"],
+    "A-": ["A-", "A+", "AB-", "AB+"],
+    "A+": ["A+", "AB+"],
+    "B-": ["B-", "B+", "AB-", "AB+"],
+    "B+": ["B+", "AB+"],
+    "AB-": ["AB-", "AB+"],
+    "AB+": ["AB+"],
+  };
+
+  const isUniversalDonor = user?.bloodType === "O-";
+  
+  const isCompatible = useMemo(() => {
+    if (!user?.bloodType || !request?.bloodType) return false;
+    const canDonateTo = bloodCompatibility[user.bloodType] || [];
+    return canDonateTo.includes(request.bloodType);
+  }, [user?.bloodType, request?.bloodType]);
 
   if (!request) {
     return (
@@ -75,19 +107,15 @@ const SOSDetails = () => {
     toast.success(`${label} copied to clipboard`);
   };
 
-  const handleAcceptRequest = () => {
-    if (!user) {
-      toast.error("Please login to accept this request");
-      navigate("/login");
-      return;
-    }
+  const proceedWithDonation = () => {
+    if (!user) return;
 
     createDonation({
       sosRequestId: request.id,
       donorId: user.email || "unknown",
       donorName: user.name || "Anonymous Donor",
       donorPhone: user.phone || "",
-      bloodType: request.bloodType,
+      bloodType: user.bloodType || request.bloodType,
       units: 1,
       hospitalName: request.hospitalName,
       patientName: request.patientName,
@@ -99,6 +127,25 @@ const SOSDetails = () => {
     });
 
     toast.success("You've accepted this request! Contact details shared.");
+    setShowMismatchDialog(false);
+    setMismatchConfirmed(false);
+  };
+
+  const handleAcceptRequest = () => {
+    if (!user) {
+      toast.error("Please login to accept this request");
+      navigate("/login");
+      return;
+    }
+
+    // Check blood type compatibility
+    if (!isCompatible && !isUniversalDonor) {
+      setShowMismatchDialog(true);
+      return;
+    }
+
+    // Compatible or universal donor - proceed directly
+    proceedWithDonation();
   };
 
   const handleMarkComplete = (donationId: string) => {
@@ -482,6 +529,59 @@ const SOSDetails = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Blood Type Mismatch Dialog */}
+        <AlertDialog open={showMismatchDialog} onOpenChange={setShowMismatchDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-warning">
+                <AlertTriangle className="h-5 w-5" />
+                Blood Type Mismatch
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-4">
+                  <p>
+                    The patient requires <strong className="text-primary">{request.bloodType}</strong> blood, 
+                    but your blood type is <strong className="text-primary">{user?.bloodType || "Unknown"}</strong>.
+                  </p>
+                  
+                  <div className="p-4 rounded-xl bg-warning/10 border border-warning/30">
+                    <p className="text-sm text-foreground">
+                      <strong>⚠️ Important:</strong> Donating incompatible blood can cause serious medical complications. 
+                      Please confirm with the hospital staff before proceeding.
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
+                    <Checkbox 
+                      id="confirm-mismatch"
+                      checked={mismatchConfirmed}
+                      onCheckedChange={(checked) => setMismatchConfirmed(checked === true)}
+                    />
+                    <label 
+                      htmlFor="confirm-mismatch" 
+                      className="text-sm text-foreground cursor-pointer leading-relaxed"
+                    >
+                      I understand the blood types are different and I will confirm with the hospital before donating.
+                    </label>
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setMismatchConfirmed(false)}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={proceedWithDonation}
+                disabled={!mismatchConfirmed}
+                className="bg-primary hover:bg-primary/90"
+              >
+                Proceed Anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
