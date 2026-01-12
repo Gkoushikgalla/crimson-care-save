@@ -25,12 +25,14 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSOS } from "@/contexts/SOSContext";
+import { useDonation } from "@/contexts/DonationContext";
 import SOSRequestDialog from "@/components/sos/SOSRequestDialog";
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { getRequestsByHospital } = useSOS();
+  const { getDonationsByHospital, completeDonation } = useDonation();
   const [activeTab, setActiveTab] = useState<
     "overview" | "create" | "requests" | "responses" | "records" | "settings"
   >("overview");
@@ -99,11 +101,15 @@ const HospitalDashboard = () => {
     { id: 3, name: "Mike R.", bloodType: "A+", distance: "1.8 km", eta: "12 min", phone: "+1 555-0789" },
   ];
 
-  const donationRecords = [
-    { id: 1, donor: "John D.", bloodType: "O-", units: 1, date: "2024-01-10", status: "completed" },
-    { id: 2, donor: "Sarah M.", bloodType: "O-", units: 1, date: "2024-01-09", status: "completed" },
-    { id: 3, donor: "Mike R.", bloodType: "A+", units: 1, date: "2024-01-08", status: "completed" },
-  ];
+  // Get donations for this hospital from context
+  const hospitalDonations = useMemo(() => {
+    return getDonationsByHospital(hospital.name);
+  }, [getDonationsByHospital, hospital.name]);
+
+  const handleMarkDonationComplete = (donationId: string) => {
+    completeDonation(donationId);
+    toast.success("Donation marked as complete!");
+  };
 
   const handleLogout = () => {
     logout();
@@ -169,10 +175,15 @@ const HospitalDashboard = () => {
                         {request.urgency.toUpperCase()}
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-muted-foreground">{request.matchedDonors} matched</span>
-                      <span className="text-success">{request.confirmedDonors} confirmed</span>
-                      <Badge variant="outline" className="ml-auto">{request.status.replace("_", " ")}</Badge>
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-muted-foreground">{request.matchedDonors} matched</span>
+                        <span className="text-success">{request.confirmedDonors} confirmed</span>
+                        <Badge variant="outline">{request.status.replace("_", " ")}</Badge>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/sos/${request.id}`)}>
+                        View Details
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -229,21 +240,38 @@ const HospitalDashboard = () => {
                 <CardDescription>Track donations received for requests.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {donationRecords.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between p-4 rounded-xl bg-secondary/40">
-                    <div>
-                      <p className="font-semibold">{r.donor}</p>
-                      <p className="text-sm text-muted-foreground">{r.date}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">{r.bloodType}</Badge>
-                      <Badge variant="outline">{r.units} unit</Badge>
-                      <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                        <CheckCircle className="h-3 w-3 mr-1" /> {r.status}
-                      </Badge>
-                    </div>
+                {hospitalDonations.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Droplets className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No donations recorded yet</p>
                   </div>
-                ))}
+                ) : (
+                  hospitalDonations.map((donation) => (
+                    <div key={donation.id} className="flex items-center justify-between p-4 rounded-xl bg-secondary/40">
+                      <div>
+                        <p className="font-semibold">{donation.donorName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          For: {donation.patientName} • {getTimeAgo(donation.donatedAt)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline">{donation.bloodType}</Badge>
+                        <Badge variant="outline">{donation.units} unit</Badge>
+                        {donation.status === "completed" ? (
+                          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                            <CheckCircle className="h-3 w-3 mr-1" /> Completed
+                          </Badge>
+                        ) : donation.status === "pending" ? (
+                          <Button variant="hero" size="sm" onClick={() => handleMarkDonationComplete(donation.id)}>
+                            Mark Complete
+                          </Button>
+                        ) : (
+                          <Badge variant="outline">Cancelled</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>

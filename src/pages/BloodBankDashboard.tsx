@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,16 +22,43 @@ import {
   Calendar,
   Plus,
   Minus,
+  User,
+  MapPin,
+  Phone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSOS } from "@/contexts/SOSContext";
+import { useDonation } from "@/contexts/DonationContext";
 
 const BloodBankDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { getActiveRequests } = useSOS();
+  const { donations, getDonationsByBloodBank, completeDonation } = useDonation();
   const [activeTab, setActiveTab] = useState("overview");
 
   const bloodBankName = user?.bloodBankName || "Central Blood Bank";
+
+  // Get active SOS requests
+  const activeSOSRequests = useMemo(() => {
+    return getActiveRequests().slice(0, 5);
+  }, [getActiveRequests]);
+
+  // Get donations for this blood bank
+  const bloodBankDonations = useMemo(() => {
+    return getDonationsByBloodBank(bloodBankName);
+  }, [getDonationsByBloodBank, bloodBankName]);
+
+  function getTimeAgo(dateString: string): string {
+    const diffMs = Date.now() - new Date(dateString).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hr ago`;
+    return `${Math.floor(diffHours / 24)} day${Math.floor(diffHours / 24) > 1 ? "s" : ""} ago`;
+  }
 
   // Blood inventory data
   const inventory = [
@@ -56,7 +83,7 @@ const BloodBankDashboard = () => {
     totalUnits: 207,
     weeklyDonations: 34,
     weeklyDistributions: 28,
-    pendingRequests: 5,
+    pendingRequests: activeSOSRequests.length,
   };
 
   const handleLogout = () => {
@@ -75,14 +102,132 @@ const BloodBankDashboard = () => {
 
   const navItems = [
     { icon: TrendingUp, label: "Overview", id: "overview" },
+    { icon: AlertTriangle, label: "SOS Alerts", id: "sos" },
     { icon: Package, label: "Inventory", id: "inventory" },
     { icon: BarChart3, label: "Transactions", id: "transactions" },
+    { icon: Droplets, label: "Donations", id: "donations" },
     { icon: Calendar, label: "Drives", id: "drives" },
     { icon: Settings, label: "Settings", id: "settings" },
   ];
 
+  const handleMarkDonationComplete = (donationId: string) => {
+    completeDonation(donationId);
+    toast.success("Donation marked as complete!");
+  };
+
   const renderContent = () => {
     switch (activeTab) {
+      case "sos":
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-display font-bold">Active SOS Alerts</h2>
+              <Badge variant="destructive" className="animate-pulse">
+                {activeSOSRequests.length} Active
+              </Badge>
+            </div>
+
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                {activeSOSRequests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No active SOS requests</p>
+                  </div>
+                ) : (
+                  activeSOSRequests.map((request) => (
+                    <div key={request.id} className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-crimson flex items-center justify-center">
+                            <span className="text-lg font-bold text-primary-foreground">{request.bloodType}</span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-semibold">{request.patientName}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {request.units} unit(s) • {request.hospitalName}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className={request.urgency === "critical" ? "bg-destructive" : request.urgency === "high" ? "bg-warning" : "bg-info"}>
+                          {request.urgency.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>{request.matchedDonors} matched</span>
+                          <span className="text-success">{request.confirmedDonors} confirmed</span>
+                          <span>{getTimeAgo(request.createdAt)}</span>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/sos/${request.id}`)}>
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case "donations":
+        return (
+          <div className="space-y-6 animate-fade-in">
+            <h2 className="text-2xl font-display font-bold">Donation Records</h2>
+
+            <Card className="shadow-card">
+              <CardHeader>
+                <CardTitle>Recent Donations</CardTitle>
+                <CardDescription>Track all donations received</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {bloodBankDonations.length === 0 && donations.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Droplets className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No donations recorded yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {(bloodBankDonations.length > 0 ? bloodBankDonations : donations).slice(0, 10).map((donation) => (
+                      <div key={donation.id} className="flex items-center justify-between p-4 rounded-xl border border-border">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-crimson flex items-center justify-center">
+                            <span className="text-sm font-bold text-primary-foreground">{donation.bloodType}</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold">{donation.donorName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              For: {donation.patientName} • {donation.hospitalName}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline">{donation.units} unit</Badge>
+                          {donation.status === "completed" ? (
+                            <Badge className="bg-success/10 text-success border-success/30">
+                              <CheckCircle className="h-3 w-3 mr-1" /> Completed
+                            </Badge>
+                          ) : donation.status === "pending" ? (
+                            <Button variant="hero" size="sm" onClick={() => handleMarkDonationComplete(donation.id)}>
+                              Mark Complete
+                            </Button>
+                          ) : (
+                            <Badge variant="outline">Cancelled</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+
       case "inventory":
         return (
           <div className="space-y-6 animate-fade-in">
