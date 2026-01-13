@@ -33,7 +33,9 @@ interface DonationContextType {
 
 const DonationContext = createContext<DonationContextType | undefined>(undefined);
 
+// Demo mode only - localStorage fallback for development
 const getStoredDonations = (): Donation[] => {
+  if (import.meta.env.PROD) return []; // No localStorage in production
   try {
     const stored = localStorage.getItem("crimsoncare_donations");
     return stored ? JSON.parse(stored) : [];
@@ -43,6 +45,7 @@ const getStoredDonations = (): Donation[] => {
 };
 
 const saveDonations = (donations: Donation[]) => {
+  if (import.meta.env.PROD) return; // No localStorage in production
   localStorage.setItem("crimsoncare_donations", JSON.stringify(donations));
 };
 
