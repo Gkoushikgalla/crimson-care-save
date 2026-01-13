@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,7 +86,7 @@ const validatePhone = (phone: string): { valid: boolean; error?: string } => {
 
 const Register = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, user, isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
   const initialRole = searchParams.get("role") || "donor";
 
@@ -94,6 +94,8 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [registeredRole, setRegisteredRole] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     role: initialRole,
     name: "",
@@ -107,6 +109,21 @@ const Register = () => {
     bloodBankName: "",
     licenseNumber: "",
   });
+
+  // Redirect when user is authenticated after successful registration
+  useEffect(() => {
+    if (registrationSuccess && isAuthenticated && user) {
+      navigate(getDashboardPath(user.role));
+    } else if (registrationSuccess && registeredRole) {
+      // Fallback: if user state not yet updated, use registered role
+      const timer = setTimeout(() => {
+        if (!user) {
+          navigate(getDashboardPath(registeredRole));
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [registrationSuccess, isAuthenticated, user, registeredRole, navigate]);
 
   const bloodTypes = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 
@@ -213,7 +230,9 @@ const Register = () => {
     // Mock: Show email/SMS notification (in production, this would be sent from backend)
     toast.info("📧 Confirmation email sent to " + formData.email, { duration: 5000 });
     
-    navigate(getDashboardPath(formData.role));
+    // Set registration success to trigger navigation via useEffect
+    setRegisteredRole(formData.role);
+    setRegistrationSuccess(true);
   };
 
   // Show loading screen with motivational quotes
