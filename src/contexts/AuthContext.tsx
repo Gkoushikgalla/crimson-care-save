@@ -231,20 +231,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (auth && db) {
           const { createUserWithEmailAndPassword } = await import("firebase/auth");
-          const { doc, setDoc, collection, query, where, getDocs } = await import("firebase/firestore");
+          const { doc, setDoc } = await import("firebase/firestore");
           
-          // Check if email exists
-          const emailQuery = query(collection(db, "users"), where("email", "==", newUser.email));
-          const emailSnap = await getDocs(emailQuery);
-          if (!emailSnap.empty) {
-            return { success: false, error: "Email already registered. Please login instead." };
-          }
-
-          // Create Firebase Auth user
+          // Create Firebase Auth user FIRST (handles email uniqueness check)
+          // This ensures we're authenticated before any Firestore operations
           const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
           newUser.id = userCredential.user.uid;
           
-          // Store user profile in Firestore (without password - Firebase Auth handles it)
+          // Now authenticated - store user profile in Firestore
           await setDoc(doc(db, "users", newUser.id), newUser);
           
           const { hasPassword, ...safeUser } = newUser;
@@ -253,7 +247,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return { success: true };
         }
       } catch (e: any) {
-        // Log detailed error for debugging
         console.error("=== FIREBASE REGISTRATION ERROR ===");
         console.error("Error code:", e.code);
         console.error("Error message:", e.message);
