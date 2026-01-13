@@ -1,6 +1,7 @@
 import { logger } from "./logger";
 
 // Firebase configuration - uses dynamic imports to avoid build issues
+// Build timestamp: 2026-01-13
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
