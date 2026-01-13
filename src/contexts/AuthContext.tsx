@@ -253,11 +253,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return { success: true };
         }
       } catch (e: any) {
+        // Log detailed error for debugging
+        console.error("=== FIREBASE REGISTRATION ERROR ===");
+        console.error("Error code:", e.code);
+        console.error("Error message:", e.message);
+        console.error("Full error:", e);
+        console.error("===================================");
+        
         logger.error("Firebase register error:", e);
+        
         if (e.code === "auth/email-already-in-use") {
           return { success: false, error: "Email already registered. Please login instead." };
         }
-        return { success: false, error: "Registration failed. Please try again." };
+        if (e.code === "auth/weak-password") {
+          return { success: false, error: "Password should be at least 6 characters." };
+        }
+        if (e.code === "auth/invalid-email") {
+          return { success: false, error: "Invalid email address format." };
+        }
+        if (e.code === "auth/operation-not-allowed") {
+          return { success: false, error: "Email/Password sign-in is not enabled. Enable it in Firebase Console." };
+        }
+        return { success: false, error: `Registration failed: ${e.code || e.message || "Unknown error"}` };
       }
     }
 
