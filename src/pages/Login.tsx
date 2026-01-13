@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +17,21 @@ const getDashboardPath = (role?: string) => {
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, isAuthenticated } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  // Redirect when user is authenticated after successful login
+  useEffect(() => {
+    if (loginSuccess && isAuthenticated && user) {
+      navigate(getDashboardPath(user.role));
+    }
+  }, [loginSuccess, isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,15 +49,7 @@ const Login = () => {
     }
 
     toast.success("Welcome back!");
-    
-    // Get updated user from localStorage to determine role
-    const savedUser = localStorage.getItem("crimsoncare_current_user");
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      navigate(getDashboardPath(userData.role));
-    } else {
-      navigate("/dashboard");
-    }
+    setLoginSuccess(true);
   };
 
   return (
