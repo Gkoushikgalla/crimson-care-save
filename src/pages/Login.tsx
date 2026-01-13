@@ -29,29 +29,45 @@ const Login = () => {
   // Redirect when user is authenticated after successful login
   useEffect(() => {
     if (loginSuccess && isAuthenticated && user) {
-      navigate(getDashboardPath(user.role));
-    } else if (loginSuccess && !user) {
-      // Fallback: Firebase auth successful but user profile not yet loaded
-      // Wait a bit for the profile to load, then redirect to donor dashboard as default
-      const timer = setTimeout(() => {
-        if (!user) {
-          // Check sessionStorage for session ID as backup
-          const sessionId = sessionStorage.getItem("crimsoncare_session_id");
-          if (sessionId) {
-            navigate("/dashboard/donor");
-          }
-        }
-      }, 2000);
-      return () => clearTimeout(timer);
+      console.log("Login redirect: user authenticated", user.role);
+      navigate(getDashboardPath(user.role), { replace: true });
     }
   }, [loginSuccess, isAuthenticated, user, navigate]);
+
+  // Fallback navigation after timeout
+  useEffect(() => {
+    if (!loginSuccess) return;
+    
+    const timer = setTimeout(() => {
+      // Force navigate if still on login page after 3 seconds
+      const sessionId = sessionStorage.getItem("crimsoncare_session_id");
+      console.log("Login fallback check - sessionId:", sessionId, "user:", user);
+      if (sessionId) {
+        // Try to get user role from localStorage for proper redirect
+        try {
+          const stored = localStorage.getItem("crimsoncare_users");
+          if (stored) {
+            const users = JSON.parse(stored);
+            const foundUser = users.find((u: any) => u.id === sessionId);
+            if (foundUser) {
+              navigate(getDashboardPath(foundUser.role), { replace: true });
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Error reading user data:", e);
+        }
+        // Default fallback
+        navigate("/dashboard/donor", { replace: true });
+      }
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, [loginSuccess, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 600));
 
     const result = await login(formData.email, formData.password);
     setIsLoading(false);
