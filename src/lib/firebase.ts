@@ -1,15 +1,15 @@
 import { logger } from "./logger";
 
-// Firebase configuration - uses dynamic imports to avoid build issues
-// Build timestamp: 2026-01-13
+// Firebase configuration - hardcoded for production builds
+// These are public/publishable keys, secured by Firebase Security Rules
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+  apiKey: "AIzaSyAuu-CwO_inAYz70rdNOByFCLapDMoGF2s",
+  authDomain: "crimson-care-109be.firebaseapp.com",
+  projectId: "crimson-care-109be",
+  storageBucket: "crimson-care-109be.firebasestorage.app",
+  messagingSenderId: "25340781932",
+  appId: "1:25340781932:web:aab9ed613c27dad5ed3f49",
+  measurementId: "G-YVJ1T9JJWM"
 };
 
 export const isFirebaseConfigured = Boolean(
