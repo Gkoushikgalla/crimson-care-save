@@ -501,3 +501,9 @@ export const useAuth = () => {
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
+
+// Safe version that returns null if outside AuthProvider (for public components)
+export const useAuthSafe = () => {
+  const context = useContext(AuthContext);
+  return context ?? null;
+};
