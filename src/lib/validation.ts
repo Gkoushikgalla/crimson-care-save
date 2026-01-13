@@ -52,11 +52,11 @@ export const registrationSchema = z.object({
   phone: phoneSchema,
   password: passwordSchema,
   role: userRoleSchema,
-  bloodType: bloodTypeSchema.optional(),
-  apaarId: z.string().max(50).optional(),
-  hospitalName: z.string().max(200).optional(),
-  bloodBankName: z.string().max(200).optional(),
-  licenseNumber: z.string().max(100).optional(),
+  bloodType: z.union([bloodTypeSchema, z.literal(""), z.undefined()]).optional(),
+  apaarId: z.string().max(50).optional().or(z.literal("")),
+  hospitalName: z.string().max(200).optional().or(z.literal("")),
+  bloodBankName: z.string().max(200).optional().or(z.literal("")),
+  licenseNumber: z.string().max(100).optional().or(z.literal("")),
 });
 
 // Login schema
