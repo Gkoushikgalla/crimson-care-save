@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef, useCallback } from "react";
 import { isFirebaseConfigured, getFirebaseDb, getFirebaseAuth } from "@/lib/firebase";
 import { registrationSchema, loginSchema, safeValidate } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 
 export interface DonorStats {
   totalDonations: number;
@@ -119,7 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
         } catch (e) {
-          console.error("Firebase Auth init error:", e);
+          logger.error("Firebase Auth init error:", e);
         }
       }
 
@@ -161,14 +162,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setIsLoading(false);
             },
             (error) => {
-              console.error("User profile error:", error);
+              logger.error("User profile error:", error);
               setIsLoading(false);
             }
           );
           return;
         }
       } catch (e) {
-        console.error("Load user profile error:", e);
+        logger.error("Load user profile error:", e);
       }
     }
     
@@ -186,7 +187,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (e) {
-        console.error("Local storage error:", e);
+        logger.error("Local storage error:", e);
       }
     }
     setIsLoading(false);
@@ -252,7 +253,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return { success: true };
         }
       } catch (e: any) {
-        console.error("Firebase register error:", e);
+        logger.error("Firebase register error:", e);
         if (e.code === "auth/email-already-in-use") {
           return { success: false, error: "Email already registered. Please login instead." };
         }
@@ -280,7 +281,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         sessionStorage.setItem("crimsoncare_session_id", newUser.id);
         return { success: true };
       } catch (e) {
-        console.error("Local storage error:", e);
+        logger.error("Local storage error:", e);
         return { success: false, error: "Registration failed. Please try again." };
       }
     }
@@ -310,7 +311,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return { success: true };
         }
       } catch (e: any) {
-        console.error("Firebase login error:", e);
+        logger.error("Firebase login error:", e);
         // Don't reveal whether email exists
         return { success: false, error: "Invalid email or password" };
       }
@@ -335,7 +336,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch (e) {
-        console.error("Local storage error:", e);
+        logger.error("Local storage error:", e);
       }
     }
     
@@ -351,7 +352,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await signOut(auth);
         }
       } catch (e) {
-        console.error("Firebase signout error:", e);
+        logger.error("Firebase signout error:", e);
       }
     }
     
@@ -366,7 +367,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Prevent role escalation
     if (data.role && data.role !== user.role) {
-      console.error("Role modification not allowed");
+      logger.warn("Role modification not allowed");
       return;
     }
 
@@ -383,7 +384,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return; // Firestore listener will update state
         }
       } catch (e) {
-        console.error("Firebase update error:", e);
+        logger.error("Firebase update error:", e);
       }
     }
     
@@ -404,7 +405,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        console.error("Firebase update error:", e);
+        logger.error("Firebase update error:", e);
       }
     }
     
@@ -440,7 +441,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return donors;
         }
       } catch (e) {
-        console.error("Query donors error:", e);
+        logger.error("Query donors error:", e);
       }
     }
 
@@ -455,7 +456,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .map(({ passwordHash, hasPassword, ...u }: any) => u);
         }
       } catch (e) {
-        console.error("Local storage error:", e);
+        logger.error("Local storage error:", e);
       }
     }
     

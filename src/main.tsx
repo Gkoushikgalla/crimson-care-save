@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { isFirebaseConfigured } from "./lib/firebase";
+import { logger } from "./lib/logger";
 
 // Production security: Clear demo data and require Firebase
 if (import.meta.env.PROD) {
@@ -12,7 +13,7 @@ if (import.meta.env.PROD) {
   
   // In production, Firebase must be configured
   if (!isFirebaseConfigured) {
-    console.error('Firebase configuration required for production');
+    logger.error('Firebase configuration required for production');
     document.body.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: system-ui;">
         <h1 style="color: #dc2626;">Configuration Required</h1>
