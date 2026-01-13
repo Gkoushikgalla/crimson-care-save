@@ -194,9 +194,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
+    // Prepare data for validation - convert undefined to empty string for optional fields
+    const validationData = {
+      ...userData,
+      bloodType: userData.bloodType || undefined,
+      apaarId: userData.apaarId || undefined,
+      hospitalName: userData.hospitalName || undefined,
+      bloodBankName: userData.bloodBankName || undefined,
+      licenseNumber: userData.licenseNumber || undefined,
+    };
+
     // Validate input data
-    const validation = safeValidate(registrationSchema, userData);
+    const validation = safeValidate(registrationSchema, validationData);
     if (!validation.success) {
+      console.error("Registration validation failed:", (validation as any).errors);
       return { success: false, error: (validation as { success: false; errors: string[] }).errors[0] };
     }
 

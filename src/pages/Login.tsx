@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const hasNavigated = useRef(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -28,46 +29,59 @@ const Login = () => {
 
   // Redirect when user is authenticated after successful login
   useEffect(() => {
-    if (loginSuccess && isAuthenticated && user) {
-      console.log("Login redirect: user authenticated", user.role);
+    if (loginSuccess && isAuthenticated && user && !hasNavigated.current) {
+      hasNavigated.current = true;
       navigate(getDashboardPath(user.role), { replace: true });
     }
   }, [loginSuccess, isAuthenticated, user, navigate]);
 
-  // Fallback navigation after timeout
+  // Polling-based fallback - check every 500ms for up to 5 seconds
   useEffect(() => {
-    if (!loginSuccess) return;
+    if (!loginSuccess || hasNavigated.current) return;
     
-    const timer = setTimeout(() => {
-      // Force navigate if still on login page after 3 seconds
+    let attempts = 0;
+    const maxAttempts = 10; // 5 seconds total
+    
+    const pollInterval = setInterval(() => {
+      attempts++;
       const sessionId = sessionStorage.getItem("crimsoncare_session_id");
-      console.log("Login fallback check - sessionId:", sessionId, "user:", user);
-      if (sessionId) {
-        // Try to get user role from localStorage for proper redirect
+      
+      if (sessionId && !hasNavigated.current) {
+        // Try localStorage first for user role
         try {
           const stored = localStorage.getItem("crimsoncare_users");
           if (stored) {
             const users = JSON.parse(stored);
             const foundUser = users.find((u: any) => u.id === sessionId);
             if (foundUser) {
+              hasNavigated.current = true;
+              clearInterval(pollInterval);
               navigate(getDashboardPath(foundUser.role), { replace: true });
               return;
             }
           }
         } catch (e) {
-          console.error("Error reading user data:", e);
+          // Continue polling
         }
-        // Default fallback
-        navigate("/dashboard/donor", { replace: true });
+        
+        // After max attempts, force navigate to default dashboard
+        if (attempts >= maxAttempts) {
+          hasNavigated.current = true;
+          clearInterval(pollInterval);
+          navigate("/dashboard/donor", { replace: true });
+        }
+      } else if (attempts >= maxAttempts) {
+        clearInterval(pollInterval);
       }
-    }, 3000);
+    }, 500);
     
-    return () => clearTimeout(timer);
+    return () => clearInterval(pollInterval);
   }, [loginSuccess, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    hasNavigated.current = false;
 
     const result = await login(formData.email, formData.password);
     setIsLoading(false);
