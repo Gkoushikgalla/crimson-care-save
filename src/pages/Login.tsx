@@ -30,6 +30,19 @@ const Login = () => {
   useEffect(() => {
     if (loginSuccess && isAuthenticated && user) {
       navigate(getDashboardPath(user.role));
+    } else if (loginSuccess && !user) {
+      // Fallback: Firebase auth successful but user profile not yet loaded
+      // Wait a bit for the profile to load, then redirect to donor dashboard as default
+      const timer = setTimeout(() => {
+        if (!user) {
+          // Check sessionStorage for session ID as backup
+          const sessionId = sessionStorage.getItem("crimsoncare_session_id");
+          if (sessionId) {
+            navigate("/dashboard/donor");
+          }
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
     }
   }, [loginSuccess, isAuthenticated, user, navigate]);
 

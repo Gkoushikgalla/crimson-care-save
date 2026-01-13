@@ -267,6 +267,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (e.code === "auth/operation-not-allowed") {
           return { success: false, error: "Email/Password sign-in is not enabled. Enable it in Firebase Console." };
         }
+        if (e.code === "auth/invalid-argument" || e.code === "invalid-argument") {
+          return { success: false, error: "Invalid registration data. Please check all fields and try again." };
+        }
+        if (e.code === "auth/network-request-failed") {
+          return { success: false, error: "Network error. Please check your connection and try again." };
+        }
         return { success: false, error: `Registration failed: ${e.code || e.message || "Unknown error"}` };
       }
     }
