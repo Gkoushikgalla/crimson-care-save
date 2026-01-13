@@ -33,7 +33,9 @@ interface SOSContextType {
 
 const SOSContext = createContext<SOSContextType | undefined>(undefined);
 
+// Demo mode only - localStorage fallback for development
 const getStoredRequests = (): SOSRequest[] => {
+  if (import.meta.env.PROD) return []; // No localStorage in production
   try {
     const stored = localStorage.getItem("crimsoncare_sos_requests");
     return stored ? JSON.parse(stored) : [];
@@ -43,6 +45,7 @@ const getStoredRequests = (): SOSRequest[] => {
 };
 
 const saveRequests = (requests: SOSRequest[]) => {
+  if (import.meta.env.PROD) return; // No localStorage in production
   localStorage.setItem("crimsoncare_sos_requests", JSON.stringify(requests));
 };
 

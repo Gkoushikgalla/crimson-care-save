@@ -172,20 +172,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Fallback: Load from localStorage (demo mode)
-    try {
-      const stored = localStorage.getItem("crimsoncare_users");
-      if (stored) {
-        const users = JSON.parse(stored) as StoredUser[];
-        const foundUser = users.find(u => u.id === userId);
-        if (foundUser) {
-          const { hasPassword, ...safeUser } = foundUser;
-          setUser(safeUser);
-          sessionStorage.setItem("crimsoncare_session_id", userId);
+// Demo mode fallback - only available in development
+    if (import.meta.env.DEV) {
+      try {
+        const stored = localStorage.getItem("crimsoncare_users");
+        if (stored) {
+          const users = JSON.parse(stored) as StoredUser[];
+          const foundUser = users.find(u => u.id === userId);
+          if (foundUser) {
+            const { hasPassword, ...safeUser } = foundUser;
+            setUser(safeUser);
+            sessionStorage.setItem("crimsoncare_session_id", userId);
+          }
         }
+      } catch (e) {
+        console.error("Local storage error:", e);
       }
-    } catch (e) {
-      console.error("Local storage error:", e);
     }
     setIsLoading(false);
   };
@@ -258,28 +260,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Fallback: Store in localStorage (demo mode) - store hash, not password
-    try {
-      const stored = localStorage.getItem("crimsoncare_users");
-      const users: any[] = stored ? JSON.parse(stored) : [];
-      
-      if (users.some(u => u.email.toLowerCase() === newUser.email)) {
-        return { success: false, error: "Email already registered. Please login instead." };
-      }
+// Demo mode fallback - only available in development
+    if (import.meta.env.DEV) {
+      try {
+        const stored = localStorage.getItem("crimsoncare_users");
+        const users: any[] = stored ? JSON.parse(stored) : [];
+        
+        if (users.some(u => u.email.toLowerCase() === newUser.email)) {
+          return { success: false, error: "Email already registered. Please login instead." };
+        }
 
-      // Store with password hash for demo mode verification
-      const userToStore = { ...newUser, passwordHash };
-      users.push(userToStore);
-      localStorage.setItem("crimsoncare_users", JSON.stringify(users));
-      
-      const { hasPassword, ...safeUser } = newUser;
-      setUser(safeUser);
-      sessionStorage.setItem("crimsoncare_session_id", newUser.id);
-      return { success: true };
-    } catch (e) {
-      console.error("Local storage error:", e);
-      return { success: false, error: "Registration failed. Please try again." };
+        // Store with password hash for demo mode verification (DEV ONLY)
+        const userToStore = { ...newUser, passwordHash };
+        users.push(userToStore);
+        localStorage.setItem("crimsoncare_users", JSON.stringify(users));
+        
+        const { hasPassword, ...safeUser } = newUser;
+        setUser(safeUser);
+        sessionStorage.setItem("crimsoncare_session_id", newUser.id);
+        return { success: true };
+      } catch (e) {
+        console.error("Local storage error:", e);
+        return { success: false, error: "Registration failed. Please try again." };
+      }
     }
+    
+    // Production without Firebase - reject
+    return { success: false, error: "Backend not configured. Please contact support." };
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -309,25 +316,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Fallback: Check localStorage with hash comparison
-    try {
-      const stored = localStorage.getItem("crimsoncare_users");
-      if (stored) {
-        const users = JSON.parse(stored);
-        const passwordHash = await simpleHash(password);
-        const foundUser = users.find((u: any) => 
-          u.email.toLowerCase() === normalizedEmail && u.passwordHash === passwordHash
-        );
-        
-        if (foundUser) {
-          const { passwordHash: _, hasPassword, ...safeUser } = foundUser;
-          setUser(safeUser);
-          sessionStorage.setItem("crimsoncare_session_id", foundUser.id);
-          return { success: true };
+// Demo mode fallback - only available in development
+    if (import.meta.env.DEV) {
+      try {
+        const stored = localStorage.getItem("crimsoncare_users");
+        if (stored) {
+          const users = JSON.parse(stored);
+          const passwordHash = await simpleHash(password);
+          const foundUser = users.find((u: any) => 
+            u.email.toLowerCase() === normalizedEmail && u.passwordHash === passwordHash
+          );
+          
+          if (foundUser) {
+            const { passwordHash: _, hasPassword, ...safeUser } = foundUser;
+            setUser(safeUser);
+            sessionStorage.setItem("crimsoncare_session_id", foundUser.id);
+            return { success: true };
+          }
         }
+      } catch (e) {
+        console.error("Local storage error:", e);
       }
-    } catch (e) {
-      console.error("Local storage error:", e);
     }
     
     return { success: false, error: "Invalid email or password" };
@@ -435,17 +444,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Fallback for demo mode
-    try {
-      const stored = localStorage.getItem("crimsoncare_users");
-      if (stored) {
-        const users = JSON.parse(stored);
-        return users
-          .filter((u: any) => u.role === "donor" && u.bloodType === bloodType)
-          .map(({ passwordHash, hasPassword, ...u }: any) => u);
+// Demo mode fallback - only available in development
+    if (import.meta.env.DEV) {
+      try {
+        const stored = localStorage.getItem("crimsoncare_users");
+        if (stored) {
+          const users = JSON.parse(stored);
+          return users
+            .filter((u: any) => u.role === "donor" && u.bloodType === bloodType)
+            .map(({ passwordHash, hasPassword, ...u }: any) => u);
+        }
+      } catch (e) {
+        console.error("Local storage error:", e);
       }
-    } catch (e) {
-      console.error("Local storage error:", e);
     }
     
     return [];
