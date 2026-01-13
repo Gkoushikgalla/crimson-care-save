@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { isFirebaseConfigured, getFirebaseDb } from "@/lib/firebase";
+import { logger } from "@/lib/logger";
 
 export interface Donation {
   id: string;
@@ -83,13 +84,13 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
             setIsLoading(false);
           },
           (error) => {
-            console.error("Firestore error:", error);
+            logger.error("Firestore error:", error);
             setDonations(getStoredDonations());
             setIsLoading(false);
           }
         );
       } catch (error) {
-        console.error("Firebase init error:", error);
+        logger.error("Firebase init error:", error);
         setDonations(getStoredDonations());
         setIsLoading(false);
       }
@@ -116,7 +117,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
           return newDonation;
         }
       } catch (e) {
-        console.error("Firebase write error:", e);
+        logger.error("Firebase write error:", e);
       }
     }
     
@@ -140,7 +141,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        console.error("Firebase update error:", e);
+        logger.error("Firebase update error:", e);
       }
     }
     
@@ -161,7 +162,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        console.error("Firebase update error:", e);
+        logger.error("Firebase update error:", e);
       }
     }
     

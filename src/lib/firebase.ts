@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 // Firebase configuration - uses dynamic imports to avoid build issues
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -27,7 +29,7 @@ export const getFirebaseApp = async () => {
     }
     return firebaseApp;
   } catch (e) {
-    console.error("Firebase app init error:", e);
+    logger.error("Firebase app init error:", e);
     return null;
   }
 };
@@ -42,7 +44,7 @@ export const getFirebaseDb = async () => {
     const { getFirestore } = await import("firebase/firestore");
     return getFirestore(app);
   } catch (e) {
-    console.error("Firebase Firestore init error:", e);
+    logger.error("Firebase Firestore init error:", e);
     return null;
   }
 };
@@ -57,7 +59,7 @@ export const getFirebaseAuth = async () => {
     const { getAuth } = await import("firebase/auth");
     return getAuth(app);
   } catch (e) {
-    console.error("Firebase Auth init error:", e);
+    logger.error("Firebase Auth init error:", e);
     return null;
   }
 };

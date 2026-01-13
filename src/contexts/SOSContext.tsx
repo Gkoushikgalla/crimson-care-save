@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { isFirebaseConfigured, getFirebaseDb } from "@/lib/firebase";
 import { sosRequestSchema, safeValidate } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 
 export interface SOSRequest {
   id: string;
@@ -83,13 +84,13 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
             setIsLoading(false);
           },
           (error) => {
-            console.error("Firestore error:", error);
+            logger.error("Firestore error:", error);
             setRequests(getStoredRequests());
             setIsLoading(false);
           }
         );
       } catch (error) {
-        console.error("Firebase init error:", error);
+        logger.error("Firebase init error:", error);
         setRequests(getStoredRequests());
         setIsLoading(false);
       }
@@ -150,7 +151,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
           return newRequest;
         }
       } catch (e) {
-        console.error("Firebase write error:", e);
+        logger.error("Firebase write error:", e);
         throw new Error("Failed to create SOS request. Please try again.");
       }
     }
@@ -175,7 +176,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        console.error("Firebase update error:", e);
+        logger.error("Firebase update error:", e);
       }
     }
     
@@ -192,7 +193,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        console.error("Firebase delete error:", e);
+        logger.error("Firebase delete error:", e);
       }
     }
     
