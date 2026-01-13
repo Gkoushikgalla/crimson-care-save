@@ -34,9 +34,9 @@ export const phoneSchema = z.string()
     return cleanPhone.length >= 10;
   }, { message: "Please enter a valid phone number" });
 
-// Password validation
+// Password validation - matches Firebase Auth minimum of 6 characters
 export const passwordSchema = z.string()
-  .min(8, { message: "Password must be at least 8 characters" })
+  .min(6, { message: "Password must be at least 6 characters" })
   .max(128, { message: "Password is too long" });
 
 // Name validation
