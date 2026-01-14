@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,80 +8,19 @@ import { Heart, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
-const getDashboardPath = (role?: string) => {
-  if (role === "hospital") return "/dashboard/hospital";
-  if (role === "bloodbank") return "/dashboard/bloodbank";
-  if (role === "admin") return "/dashboard/admin";
-  return "/dashboard/donor";
-};
-
 const Login = () => {
   const navigate = useNavigate();
-  const { login, user, isAuthenticated } = useAuth();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
-  const hasNavigated = useRef(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
-  // Redirect when user is authenticated after successful login
-  useEffect(() => {
-    if (loginSuccess && isAuthenticated && user && !hasNavigated.current) {
-      hasNavigated.current = true;
-      navigate(getDashboardPath(user.role), { replace: true });
-    }
-  }, [loginSuccess, isAuthenticated, user, navigate]);
-
-  // Polling-based fallback - check every 500ms for up to 5 seconds
-  useEffect(() => {
-    if (!loginSuccess || hasNavigated.current) return;
-    
-    let attempts = 0;
-    const maxAttempts = 10; // 5 seconds total
-    
-    const pollInterval = setInterval(() => {
-      attempts++;
-      const sessionId = sessionStorage.getItem("crimsoncare_session_id");
-      
-      if (sessionId && !hasNavigated.current) {
-        // Try localStorage first for user role
-        try {
-          const stored = localStorage.getItem("crimsoncare_users");
-          if (stored) {
-            const users = JSON.parse(stored);
-            const foundUser = users.find((u: any) => u.id === sessionId);
-            if (foundUser) {
-              hasNavigated.current = true;
-              clearInterval(pollInterval);
-              navigate(getDashboardPath(foundUser.role), { replace: true });
-              return;
-            }
-          }
-        } catch (e) {
-          // Continue polling
-        }
-        
-        // After max attempts, force navigate to default dashboard
-        if (attempts >= maxAttempts) {
-          hasNavigated.current = true;
-          clearInterval(pollInterval);
-          navigate("/dashboard/donor", { replace: true });
-        }
-      } else if (attempts >= maxAttempts) {
-        clearInterval(pollInterval);
-      }
-    }, 500);
-    
-    return () => clearInterval(pollInterval);
-  }, [loginSuccess, navigate]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    hasNavigated.current = false;
 
     const result = await login(formData.email, formData.password);
     setIsLoading(false);
@@ -92,7 +31,14 @@ const Login = () => {
     }
 
     toast.success("Welcome back!");
-    setLoginSuccess(true);
+    
+    // Navigate based on role returned from login, or default to donor
+    const dashboardPath = result.role === "hospital" ? "/dashboard/hospital" 
+      : result.role === "bloodbank" ? "/dashboard/bloodbank"
+      : result.role === "admin" ? "/dashboard/admin"
+      : "/dashboard/donor";
+    
+    navigate(dashboardPath, { replace: true });
   };
 
   return (

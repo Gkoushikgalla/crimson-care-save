@@ -38,7 +38,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
   register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
@@ -317,7 +317,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { success: false, error: "Backend not configured. Please contact support." };
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: string }> => {
     // Validate input
     const validation = safeValidate(loginSchema, { email, password });
     if (!validation.success) {
@@ -329,22 +329,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (isFirebaseConfigured) {
       try {
         const auth = await getFirebaseAuth();
-        if (auth) {
+        const db = await getFirebaseDb();
+        if (auth && db) {
           const { signInWithEmailAndPassword } = await import("firebase/auth");
+          const { doc, getDoc } = await import("firebase/firestore");
           
           const userCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
-          // User profile will be loaded by onAuthStateChanged listener
           sessionStorage.setItem("crimsoncare_session_id", userCredential.user.uid);
-          return { success: true };
+          
+          // Fetch user profile to get role for immediate redirect
+          const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as StoredUser;
+            const { hasPassword, ...safeUser } = userData;
+            setUser({ ...safeUser, id: userDoc.id });
+            return { success: true, role: userData.role };
+          }
+          
+          return { success: true, role: "donor" };
         }
       } catch (e: any) {
         logger.error("Firebase login error:", e);
-        // Don't reveal whether email exists
         return { success: false, error: "Invalid email or password" };
       }
     }
 
-// Demo mode fallback - only available in development
+    // Demo mode fallback - only available in development
     if (import.meta.env.DEV) {
       try {
         const stored = localStorage.getItem("crimsoncare_users");
@@ -359,7 +369,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const { passwordHash: _, hasPassword, ...safeUser } = foundUser;
             setUser(safeUser);
             sessionStorage.setItem("crimsoncare_session_id", foundUser.id);
-            return { success: true };
+            return { success: true, role: foundUser.role };
           }
         }
       } catch (e) {
