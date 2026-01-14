@@ -10,8 +10,11 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 
-  // Show loading state while checking authentication
-  if (isLoading) {
+  // Also check sessionStorage as a fallback during auth state transitions
+  const hasSession = typeof window !== 'undefined' && sessionStorage.getItem("crimsoncare_session_id");
+
+  // Show loading state while checking authentication or if we have a session but user isn't loaded yet
+  if (isLoading || (hasSession && !user)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
