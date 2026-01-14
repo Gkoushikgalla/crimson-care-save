@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,16 +9,46 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingWithQuotes from "@/components/ui/LoadingWithQuotes";
 
+const getDashboardPath = (role?: string) => {
+  switch (role) {
+    case "hospital": return "/dashboard/hospital";
+    case "bloodbank": return "/dashboard/bloodbank";
+    case "admin": return "/dashboard/admin";
+    default: return "/dashboard/donor";
+  }
+};
+
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [targetRole, setTargetRole] = useState<string | undefined>();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+
+  // Watch for user state to be ready, then navigate
+  useEffect(() => {
+    if (isRedirecting && user && !authLoading) {
+      console.log("Login: User ready, navigating to dashboard", user.role);
+      navigate(getDashboardPath(user.role), { replace: true });
+    }
+  }, [isRedirecting, user, authLoading, navigate]);
+
+  // Fallback: if user state doesn't update within 2 seconds, use targetRole
+  useEffect(() => {
+    if (!isRedirecting || !targetRole) return;
+    
+    const timer = setTimeout(() => {
+      console.log("Login: Fallback navigation to", targetRole);
+      navigate(getDashboardPath(targetRole), { replace: true });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [isRedirecting, targetRole, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,15 +63,9 @@ const Login = () => {
     }
 
     toast.success("Welcome back!");
+    setTargetRole(result.role);
     setIsRedirecting(true);
-    
-    // Navigate based on role returned from login, or default to donor
-    const dashboardPath = result.role === "hospital" ? "/dashboard/hospital" 
-      : result.role === "bloodbank" ? "/dashboard/bloodbank"
-      : result.role === "admin" ? "/dashboard/admin"
-      : "/dashboard/donor";
-    
-    navigate(dashboardPath, { replace: true });
+    // Navigation happens in useEffect when user state is ready
   };
 
   if (isRedirecting) {
