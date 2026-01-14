@@ -20,52 +20,43 @@ const getDashboardPath = (role?: string) => {
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [targetRole, setTargetRole] = useState<string | undefined>();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
-  // Watch for user state to be ready, then navigate
+  // If already authenticated, redirect to dashboard
   useEffect(() => {
-    if (isRedirecting && user && !authLoading) {
-      console.log("Login: User ready, navigating to dashboard", user.role);
+    if (!authLoading && user) {
       navigate(getDashboardPath(user.role), { replace: true });
     }
-  }, [isRedirecting, user, authLoading, navigate]);
-
-  // Fallback: if user state doesn't update within 2 seconds, use targetRole
-  useEffect(() => {
-    if (!isRedirecting || !targetRole) return;
-    
-    const timer = setTimeout(() => {
-      console.log("Login: Fallback navigation to", targetRole);
-      navigate(getDashboardPath(targetRole), { replace: true });
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [isRedirecting, targetRole, navigate]);
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     const result = await login(formData.email, formData.password);
-    setIsLoading(false);
-
+    
     if (!result.success) {
+      setIsLoading(false);
       toast.error(result.error || "Invalid email or password");
       return;
     }
 
+    // Show redirecting state - the login function sets user state,
+    // so the useEffect above will handle navigation once user is set
     toast.success("Welcome back!");
-    setTargetRole(result.role);
     setIsRedirecting(true);
-    // Navigation happens in useEffect when user state is ready
+    
+    // Direct navigation as backup - user state should already be set by login()
+    setTimeout(() => {
+      navigate(getDashboardPath(result.role), { replace: true });
+    }, 100);
   };
 
   if (isRedirecting) {
