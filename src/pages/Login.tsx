@@ -7,12 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Heart, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import LoadingWithQuotes from "@/components/ui/LoadingWithQuotes";
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -31,6 +33,7 @@ const Login = () => {
     }
 
     toast.success("Welcome back!");
+    setIsRedirecting(true);
     
     // Navigate based on role returned from login, or default to donor
     const dashboardPath = result.role === "hospital" ? "/dashboard/hospital" 
@@ -40,6 +43,14 @@ const Login = () => {
     
     navigate(dashboardPath, { replace: true });
   };
+
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen bg-gradient-mesh flex items-center justify-center">
+        <LoadingWithQuotes message="Taking you to your dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-mesh flex items-center justify-center p-4 relative overflow-hidden">
