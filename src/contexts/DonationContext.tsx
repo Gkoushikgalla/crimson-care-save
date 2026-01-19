@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { isFirebaseConfigured, getFirebaseDb } from "@/lib/firebase";
-import { logger } from "@/lib/logger";
 
 export interface Donation {
   id: string;
@@ -34,9 +33,7 @@ interface DonationContextType {
 
 const DonationContext = createContext<DonationContextType | undefined>(undefined);
 
-// Demo mode only - localStorage fallback for development
 const getStoredDonations = (): Donation[] => {
-  if (import.meta.env.PROD) return []; // No localStorage in production
   try {
     const stored = localStorage.getItem("crimsoncare_donations");
     return stored ? JSON.parse(stored) : [];
@@ -46,7 +43,6 @@ const getStoredDonations = (): Donation[] => {
 };
 
 const saveDonations = (donations: Donation[]) => {
-  if (import.meta.env.PROD) return; // No localStorage in production
   localStorage.setItem("crimsoncare_donations", JSON.stringify(donations));
 };
 
@@ -84,13 +80,13 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
             setIsLoading(false);
           },
           (error) => {
-            logger.error("Firestore error:", error);
+            console.error("Firestore error:", error);
             setDonations(getStoredDonations());
             setIsLoading(false);
           }
         );
       } catch (error) {
-        logger.error("Firebase init error:", error);
+        console.error("Firebase init error:", error);
         setDonations(getStoredDonations());
         setIsLoading(false);
       }
@@ -117,7 +113,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
           return newDonation;
         }
       } catch (e) {
-        logger.error("Firebase write error:", e);
+        console.error("Firebase write error:", e);
       }
     }
     
@@ -141,7 +137,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        logger.error("Firebase update error:", e);
+        console.error("Firebase update error:", e);
       }
     }
     
@@ -162,7 +158,7 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        logger.error("Firebase update error:", e);
+        console.error("Firebase update error:", e);
       }
     }
     

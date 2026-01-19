@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef, useCallback } from "react";
 import { isFirebaseConfigured, getFirebaseDb, getFirebaseAuth } from "@/lib/firebase";
 import { registrationSchema, loginSchema, safeValidate } from "@/lib/validation";
-import { logger } from "@/lib/logger";
 
 export interface DonorStats {
   totalDonations: number;
@@ -38,7 +37,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
@@ -120,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
         } catch (e) {
-          logger.error("Firebase Auth init error:", e);
+          console.error("Firebase Auth init error:", e);
         }
       }
 
@@ -162,52 +161,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setIsLoading(false);
             },
             (error) => {
-              logger.error("User profile error:", error);
+              console.error("User profile error:", error);
               setIsLoading(false);
             }
           );
           return;
         }
       } catch (e) {
-        logger.error("Load user profile error:", e);
+        console.error("Load user profile error:", e);
       }
     }
     
-// Demo mode fallback - only available in development
-    if (import.meta.env.DEV) {
-      try {
-        const stored = localStorage.getItem("crimsoncare_users");
-        if (stored) {
-          const users = JSON.parse(stored) as StoredUser[];
-          const foundUser = users.find(u => u.id === userId);
-          if (foundUser) {
-            const { hasPassword, ...safeUser } = foundUser;
-            setUser(safeUser);
-            sessionStorage.setItem("crimsoncare_session_id", userId);
-          }
+    // Fallback: Load from localStorage (demo mode)
+    try {
+      const stored = localStorage.getItem("crimsoncare_users");
+      if (stored) {
+        const users = JSON.parse(stored) as StoredUser[];
+        const foundUser = users.find(u => u.id === userId);
+        if (foundUser) {
+          const { hasPassword, ...safeUser } = foundUser;
+          setUser(safeUser);
+          sessionStorage.setItem("crimsoncare_session_id", userId);
         }
-      } catch (e) {
-        logger.error("Local storage error:", e);
       }
+    } catch (e) {
+      console.error("Local storage error:", e);
     }
     setIsLoading(false);
   };
 
   const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
-    // Prepare data for validation - convert undefined to empty string for optional fields
-    const validationData = {
-      ...userData,
-      bloodType: userData.bloodType || undefined,
-      apaarId: userData.apaarId || undefined,
-      hospitalName: userData.hospitalName || undefined,
-      bloodBankName: userData.bloodBankName || undefined,
-      licenseNumber: userData.licenseNumber || undefined,
-    };
-
     // Validate input data
-    const validation = safeValidate(registrationSchema, validationData);
+    const validation = safeValidate(registrationSchema, userData);
     if (!validation.success) {
-      console.error("Registration validation failed:", (validation as any).errors);
       return { success: false, error: (validation as { success: false; errors: string[] }).errors[0] };
     }
 
@@ -242,14 +228,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (auth && db) {
           const { createUserWithEmailAndPassword } = await import("firebase/auth");
-          const { doc, setDoc } = await import("firebase/firestore");
+          const { doc, setDoc, collection, query, where, getDocs } = await import("firebase/firestore");
           
-          // Create Firebase Auth user FIRST (handles email uniqueness check)
-          // This ensures we're authenticated before any Firestore operations
+          // Check if email exists
+          const emailQuery = query(collection(db, "users"), where("email", "==", newUser.email));
+          const emailSnap = await getDocs(emailQuery);
+          if (!emailSnap.empty) {
+            return { success: false, error: "Email already registered. Please login instead." };
+          }
+
+          // Create Firebase Auth user
           const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
           newUser.id = userCredential.user.uid;
           
-          // Now authenticated - store user profile in Firestore
+          // Store user profile in Firestore (without password - Firebase Auth handles it)
           await setDoc(doc(db, "users", newUser.id), newUser);
           
           const { hasPassword, ...safeUser } = newUser;
@@ -258,66 +250,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return { success: true };
         }
       } catch (e: any) {
-        console.error("=== FIREBASE REGISTRATION ERROR ===");
-        console.error("Error code:", e.code);
-        console.error("Error message:", e.message);
-        console.error("Full error:", e);
-        console.error("===================================");
-        
-        logger.error("Firebase register error:", e);
-        
+        console.error("Firebase register error:", e);
         if (e.code === "auth/email-already-in-use") {
           return { success: false, error: "Email already registered. Please login instead." };
         }
-        if (e.code === "auth/weak-password") {
-          return { success: false, error: "Password should be at least 6 characters." };
-        }
-        if (e.code === "auth/invalid-email") {
-          return { success: false, error: "Invalid email address format." };
-        }
-        if (e.code === "auth/operation-not-allowed") {
-          return { success: false, error: "Email/Password sign-in is not enabled. Enable it in Firebase Console." };
-        }
-        if (e.code === "auth/invalid-argument" || e.code === "invalid-argument") {
-          return { success: false, error: "Invalid registration data. Please check all fields and try again." };
-        }
-        if (e.code === "auth/network-request-failed") {
-          return { success: false, error: "Network error. Please check your connection and try again." };
-        }
-        return { success: false, error: `Registration failed: ${e.code || e.message || "Unknown error"}` };
-      }
-    }
-
-// Demo mode fallback - only available in development
-    if (import.meta.env.DEV) {
-      try {
-        const stored = localStorage.getItem("crimsoncare_users");
-        const users: any[] = stored ? JSON.parse(stored) : [];
-        
-        if (users.some(u => u.email.toLowerCase() === newUser.email)) {
-          return { success: false, error: "Email already registered. Please login instead." };
-        }
-
-        // Store with password hash for demo mode verification (DEV ONLY)
-        const userToStore = { ...newUser, passwordHash };
-        users.push(userToStore);
-        localStorage.setItem("crimsoncare_users", JSON.stringify(users));
-        
-        const { hasPassword, ...safeUser } = newUser;
-        setUser(safeUser);
-        sessionStorage.setItem("crimsoncare_session_id", newUser.id);
-        return { success: true };
-      } catch (e) {
-        logger.error("Local storage error:", e);
         return { success: false, error: "Registration failed. Please try again." };
       }
     }
-    
-    // Production without Firebase - reject
-    return { success: false, error: "Backend not configured. Please contact support." };
+
+    // Fallback: Store in localStorage (demo mode) - store hash, not password
+    try {
+      const stored = localStorage.getItem("crimsoncare_users");
+      const users: any[] = stored ? JSON.parse(stored) : [];
+      
+      if (users.some(u => u.email.toLowerCase() === newUser.email)) {
+        return { success: false, error: "Email already registered. Please login instead." };
+      }
+
+      // Store with password hash for demo mode verification
+      const userToStore = { ...newUser, passwordHash };
+      users.push(userToStore);
+      localStorage.setItem("crimsoncare_users", JSON.stringify(users));
+      
+      const { hasPassword, ...safeUser } = newUser;
+      setUser(safeUser);
+      sessionStorage.setItem("crimsoncare_session_id", newUser.id);
+      return { success: true };
+    } catch (e) {
+      console.error("Local storage error:", e);
+      return { success: false, error: "Registration failed. Please try again." };
+    }
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     // Validate input
     const validation = safeValidate(loginSchema, { email, password });
     if (!validation.success) {
@@ -329,52 +294,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (isFirebaseConfigured) {
       try {
         const auth = await getFirebaseAuth();
-        const db = await getFirebaseDb();
-        if (auth && db) {
+        if (auth) {
           const { signInWithEmailAndPassword } = await import("firebase/auth");
-          const { doc, getDoc } = await import("firebase/firestore");
           
           const userCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+          // User profile will be loaded by onAuthStateChanged listener
           sessionStorage.setItem("crimsoncare_session_id", userCredential.user.uid);
-          
-          // Fetch user profile to get role for immediate redirect
-          const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as StoredUser;
-            const { hasPassword, ...safeUser } = userData;
-            setUser({ ...safeUser, id: userDoc.id });
-            return { success: true, role: userData.role };
-          }
-          
-          return { success: true, role: "donor" };
+          return { success: true };
         }
       } catch (e: any) {
-        logger.error("Firebase login error:", e);
+        console.error("Firebase login error:", e);
+        // Don't reveal whether email exists
         return { success: false, error: "Invalid email or password" };
       }
     }
 
-    // Demo mode fallback - only available in development
-    if (import.meta.env.DEV) {
-      try {
-        const stored = localStorage.getItem("crimsoncare_users");
-        if (stored) {
-          const users = JSON.parse(stored);
-          const passwordHash = await simpleHash(password);
-          const foundUser = users.find((u: any) => 
-            u.email.toLowerCase() === normalizedEmail && u.passwordHash === passwordHash
-          );
-          
-          if (foundUser) {
-            const { passwordHash: _, hasPassword, ...safeUser } = foundUser;
-            setUser(safeUser);
-            sessionStorage.setItem("crimsoncare_session_id", foundUser.id);
-            return { success: true, role: foundUser.role };
-          }
+    // Fallback: Check localStorage with hash comparison
+    try {
+      const stored = localStorage.getItem("crimsoncare_users");
+      if (stored) {
+        const users = JSON.parse(stored);
+        const passwordHash = await simpleHash(password);
+        const foundUser = users.find((u: any) => 
+          u.email.toLowerCase() === normalizedEmail && u.passwordHash === passwordHash
+        );
+        
+        if (foundUser) {
+          const { passwordHash: _, hasPassword, ...safeUser } = foundUser;
+          setUser(safeUser);
+          sessionStorage.setItem("crimsoncare_session_id", foundUser.id);
+          return { success: true };
         }
-      } catch (e) {
-        logger.error("Local storage error:", e);
       }
+    } catch (e) {
+      console.error("Local storage error:", e);
     }
     
     return { success: false, error: "Invalid email or password" };
@@ -389,7 +342,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await signOut(auth);
         }
       } catch (e) {
-        logger.error("Firebase signout error:", e);
+        console.error("Firebase signout error:", e);
       }
     }
     
@@ -404,7 +357,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     // Prevent role escalation
     if (data.role && data.role !== user.role) {
-      logger.warn("Role modification not allowed");
+      console.error("Role modification not allowed");
       return;
     }
 
@@ -421,7 +374,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return; // Firestore listener will update state
         }
       } catch (e) {
-        logger.error("Firebase update error:", e);
+        console.error("Firebase update error:", e);
       }
     }
     
@@ -442,7 +395,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        logger.error("Firebase update error:", e);
+        console.error("Firebase update error:", e);
       }
     }
     
@@ -478,23 +431,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return donors;
         }
       } catch (e) {
-        logger.error("Query donors error:", e);
+        console.error("Query donors error:", e);
       }
     }
 
-// Demo mode fallback - only available in development
-    if (import.meta.env.DEV) {
-      try {
-        const stored = localStorage.getItem("crimsoncare_users");
-        if (stored) {
-          const users = JSON.parse(stored);
-          return users
-            .filter((u: any) => u.role === "donor" && u.bloodType === bloodType)
-            .map(({ passwordHash, hasPassword, ...u }: any) => u);
-        }
-      } catch (e) {
-        logger.error("Local storage error:", e);
+    // Fallback for demo mode
+    try {
+      const stored = localStorage.getItem("crimsoncare_users");
+      if (stored) {
+        const users = JSON.parse(stored);
+        return users
+          .filter((u: any) => u.role === "donor" && u.bloodType === bloodType)
+          .map(({ passwordHash, hasPassword, ...u }: any) => u);
       }
+    } catch (e) {
+      console.error("Local storage error:", e);
     }
     
     return [];
@@ -521,10 +472,4 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
-};
-
-// Safe version that returns null if outside AuthProvider (for public components)
-export const useAuthSafe = () => {
-  const context = useContext(AuthContext);
-  return context ?? null;
 };

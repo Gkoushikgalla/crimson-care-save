@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,65 +7,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Heart, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import LoadingWithQuotes from "@/components/ui/LoadingWithQuotes";
 
 const getDashboardPath = (role?: string) => {
-  switch (role) {
-    case "hospital": return "/dashboard/hospital";
-    case "bloodbank": return "/dashboard/bloodbank";
-    case "admin": return "/dashboard/admin";
-    default: return "/dashboard/donor";
-  }
+  if (role === "hospital") return "/dashboard/hospital";
+  if (role === "bloodbank") return "/dashboard/bloodbank";
+  if (role === "admin") return "/dashboard/admin";
+  return "/dashboard/donor";
 };
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, user, isLoading: authLoading } = useAuth();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
-  // If already authenticated, redirect to dashboard
-  useEffect(() => {
-    if (!authLoading && user) {
-      navigate(getDashboardPath(user.role), { replace: true });
-    }
-  }, [user, authLoading, navigate]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
     const result = await login(formData.email, formData.password);
-    
+    setIsLoading(false);
+
     if (!result.success) {
-      setIsLoading(false);
       toast.error(result.error || "Invalid email or password");
       return;
     }
 
-    // Show redirecting state - the login function sets user state,
-    // so the useEffect above will handle navigation once user is set
     toast.success("Welcome back!");
-    setIsRedirecting(true);
     
-    // Direct navigation as backup - user state should already be set by login()
-    setTimeout(() => {
-      navigate(getDashboardPath(result.role), { replace: true });
-    }, 100);
+    // Get updated user from localStorage to determine role
+    const savedUser = localStorage.getItem("crimsoncare_current_user");
+    if (savedUser) {
+      const userData = JSON.parse(savedUser);
+      navigate(getDashboardPath(userData.role));
+    } else {
+      navigate("/dashboard");
+    }
   };
-
-  if (isRedirecting) {
-    return (
-      <div className="min-h-screen bg-gradient-mesh flex items-center justify-center">
-        <LoadingWithQuotes message="Taking you to your dashboard..." />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-mesh flex items-center justify-center p-4 relative overflow-hidden">

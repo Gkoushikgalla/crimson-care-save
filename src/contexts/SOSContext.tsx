@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { isFirebaseConfigured, getFirebaseDb } from "@/lib/firebase";
 import { sosRequestSchema, safeValidate } from "@/lib/validation";
-import { logger } from "@/lib/logger";
 
 export interface SOSRequest {
   id: string;
@@ -34,9 +33,7 @@ interface SOSContextType {
 
 const SOSContext = createContext<SOSContextType | undefined>(undefined);
 
-// Demo mode only - localStorage fallback for development
 const getStoredRequests = (): SOSRequest[] => {
-  if (import.meta.env.PROD) return []; // No localStorage in production
   try {
     const stored = localStorage.getItem("crimsoncare_sos_requests");
     return stored ? JSON.parse(stored) : [];
@@ -46,7 +43,6 @@ const getStoredRequests = (): SOSRequest[] => {
 };
 
 const saveRequests = (requests: SOSRequest[]) => {
-  if (import.meta.env.PROD) return; // No localStorage in production
   localStorage.setItem("crimsoncare_sos_requests", JSON.stringify(requests));
 };
 
@@ -84,13 +80,13 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
             setIsLoading(false);
           },
           (error) => {
-            logger.error("Firestore error:", error);
+            console.error("Firestore error:", error);
             setRequests(getStoredRequests());
             setIsLoading(false);
           }
         );
       } catch (error) {
-        logger.error("Firebase init error:", error);
+        console.error("Firebase init error:", error);
         setRequests(getStoredRequests());
         setIsLoading(false);
       }
@@ -151,7 +147,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
           return newRequest;
         }
       } catch (e) {
-        logger.error("Firebase write error:", e);
+        console.error("Firebase write error:", e);
         throw new Error("Failed to create SOS request. Please try again.");
       }
     }
@@ -176,7 +172,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        logger.error("Firebase update error:", e);
+        console.error("Firebase update error:", e);
       }
     }
     
@@ -193,7 +189,7 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
       } catch (e) {
-        logger.error("Firebase delete error:", e);
+        console.error("Firebase delete error:", e);
       }
     }
     

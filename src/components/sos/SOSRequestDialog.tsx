@@ -21,7 +21,7 @@ import {
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useSOS, SOSRequest } from "@/contexts/SOSContext";
-import { useAuthSafe } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SOSRequestDialogProps {
   trigger?: React.ReactNode;
@@ -35,8 +35,7 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { createRequest } = useSOS();
-  const authContext = useAuthSafe();
-  const user = authContext?.user ?? null;
+  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     patientName: "",

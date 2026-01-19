@@ -1,15 +1,11 @@
-import { logger } from "./logger";
-
-// Firebase configuration - hardcoded for production builds
-// These are public/publishable keys, secured by Firebase Security Rules
+// Firebase configuration - uses dynamic imports to avoid build issues
 const firebaseConfig = {
-  apiKey: "AIzaSyAuu-CwO_inAYz70rdNOByFCLapDMoGF2s",
-  authDomain: "crimson-care-109be.firebaseapp.com",
-  projectId: "crimson-care-109be",
-  storageBucket: "crimson-care-109be.firebasestorage.app",
-  messagingSenderId: "25340781932",
-  appId: "1:25340781932:web:aab9ed613c27dad5ed3f49",
-  measurementId: "G-YVJ1T9JJWM"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 export const isFirebaseConfigured = Boolean(
@@ -31,7 +27,7 @@ export const getFirebaseApp = async () => {
     }
     return firebaseApp;
   } catch (e) {
-    logger.error("Firebase app init error:", e);
+    console.error("Firebase app init error:", e);
     return null;
   }
 };
@@ -46,7 +42,7 @@ export const getFirebaseDb = async () => {
     const { getFirestore } = await import("firebase/firestore");
     return getFirestore(app);
   } catch (e) {
-    logger.error("Firebase Firestore init error:", e);
+    console.error("Firebase Firestore init error:", e);
     return null;
   }
 };
@@ -61,7 +57,7 @@ export const getFirebaseAuth = async () => {
     const { getAuth } = await import("firebase/auth");
     return getAuth(app);
   } catch (e) {
-    logger.error("Firebase Auth init error:", e);
+    console.error("Firebase Auth init error:", e);
     return null;
   }
 };

@@ -34,9 +34,9 @@ export const phoneSchema = z.string()
     return cleanPhone.length >= 10;
   }, { message: "Please enter a valid phone number" });
 
-// Password validation - matches Firebase Auth minimum of 6 characters
+// Password validation
 export const passwordSchema = z.string()
-  .min(6, { message: "Password must be at least 6 characters" })
+  .min(8, { message: "Password must be at least 8 characters" })
   .max(128, { message: "Password is too long" });
 
 // Name validation
@@ -52,11 +52,11 @@ export const registrationSchema = z.object({
   phone: phoneSchema,
   password: passwordSchema,
   role: userRoleSchema,
-  bloodType: z.union([bloodTypeSchema, z.literal(""), z.undefined()]).optional(),
-  apaarId: z.string().max(50).optional().or(z.literal("")),
-  hospitalName: z.string().max(200).optional().or(z.literal("")),
-  bloodBankName: z.string().max(200).optional().or(z.literal("")),
-  licenseNumber: z.string().max(100).optional().or(z.literal("")),
+  bloodType: bloodTypeSchema.optional(),
+  apaarId: z.string().max(50).optional(),
+  hospitalName: z.string().max(200).optional(),
+  bloodBankName: z.string().max(200).optional(),
+  licenseNumber: z.string().max(100).optional(),
 });
 
 // Login schema
