@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { isFirebaseConfigured, getFirebaseDb } from "@/lib/firebase";
+import { getAll, put, putMany, isIndexedDBAvailable, STORE_NAMES } from "@/lib/indexedDB";
 
 export interface Donation {
   id: string;
@@ -33,7 +34,7 @@ interface DonationContextType {
 
 const DonationContext = createContext<DonationContextType | undefined>(undefined);
 
-const getStoredDonations = (): Donation[] => {
+const getStoredDonationsFromLocalStorage = (): Donation[] => {
   try {
     const stored = localStorage.getItem("crimsoncare_donations");
     return stored ? JSON.parse(stored) : [];
@@ -42,8 +43,33 @@ const getStoredDonations = (): Donation[] => {
   }
 };
 
-const saveDonations = (donations: Donation[]) => {
+const saveDonationsToLocalStorage = (donations: Donation[]) => {
   localStorage.setItem("crimsoncare_donations", JSON.stringify(donations));
+};
+
+const getStoredDonations = async (): Promise<Donation[]> => {
+  if (isIndexedDBAvailable()) {
+    try {
+      const donations = await getAll<Donation>(STORE_NAMES.DONATIONS);
+      if (donations.length > 0) return donations;
+    } catch (e) {
+      console.error("IndexedDB read error:", e);
+    }
+  }
+  return getStoredDonationsFromLocalStorage();
+};
+
+const saveDonations = async (donations: Donation[]) => {
+  // Always save to localStorage as backup
+  saveDonationsToLocalStorage(donations);
+  
+  if (isIndexedDBAvailable()) {
+    try {
+      await putMany(STORE_NAMES.DONATIONS, donations);
+    } catch (e) {
+      console.error("IndexedDB write error:", e);
+    }
+  }
 };
 
 export const DonationProvider = ({ children }: { children: ReactNode }) => {
@@ -54,7 +80,8 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initFirestore = async () => {
       if (!isFirebaseConfigured) {
-        setDonations(getStoredDonations());
+        const storedDonations = await getStoredDonations();
+        setDonations(storedDonations);
         setIsLoading(false);
         return;
       }
@@ -62,7 +89,8 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
       try {
         const db = await getFirebaseDb();
         if (!db) {
-          setDonations(getStoredDonations());
+          const storedDonations = await getStoredDonations();
+          setDonations(storedDonations);
           setIsLoading(false);
           return;
         }
@@ -72,22 +100,24 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
         
         unsubscribeRef.current = onSnapshot(
           q,
-          (snapshot) => {
+          async (snapshot) => {
             const data: Donation[] = [];
             snapshot.forEach((d) => data.push({ id: d.id, ...d.data() } as Donation));
             setDonations(data);
-            saveDonations(data);
+            await saveDonations(data);
             setIsLoading(false);
           },
-          (error) => {
+          async (error) => {
             console.error("Firestore error:", error);
-            setDonations(getStoredDonations());
+            const storedDonations = await getStoredDonations();
+            setDonations(storedDonations);
             setIsLoading(false);
           }
         );
       } catch (error) {
         console.error("Firebase init error:", error);
-        setDonations(getStoredDonations());
+        const storedDonations = await getStoredDonations();
+        setDonations(storedDonations);
         setIsLoading(false);
       }
     };
@@ -97,7 +127,9 @@ export const DonationProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!isLoading) saveDonations(donations);
+    if (!isLoading) {
+      saveDonations(donations);
+    }
   }, [donations, isLoading]);
 
   const createDonation = async (donationData: Omit<Donation, "id" | "donatedAt" | "status">): Promise<Donation> => {

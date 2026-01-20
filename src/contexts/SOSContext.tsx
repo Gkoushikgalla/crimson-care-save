@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef } from "react";
 import { isFirebaseConfigured, getFirebaseDb } from "@/lib/firebase";
 import { sosRequestSchema, safeValidate } from "@/lib/validation";
+import { getAll, put, putMany, remove, isIndexedDBAvailable, STORE_NAMES } from "@/lib/indexedDB";
 
 export interface SOSRequest {
   id: string;
@@ -33,7 +34,7 @@ interface SOSContextType {
 
 const SOSContext = createContext<SOSContextType | undefined>(undefined);
 
-const getStoredRequests = (): SOSRequest[] => {
+const getStoredRequestsFromLocalStorage = (): SOSRequest[] => {
   try {
     const stored = localStorage.getItem("crimsoncare_sos_requests");
     return stored ? JSON.parse(stored) : [];
@@ -42,8 +43,33 @@ const getStoredRequests = (): SOSRequest[] => {
   }
 };
 
-const saveRequests = (requests: SOSRequest[]) => {
+const saveRequestsToLocalStorage = (requests: SOSRequest[]) => {
   localStorage.setItem("crimsoncare_sos_requests", JSON.stringify(requests));
+};
+
+const getStoredRequests = async (): Promise<SOSRequest[]> => {
+  if (isIndexedDBAvailable()) {
+    try {
+      const requests = await getAll<SOSRequest>(STORE_NAMES.SOS_REQUESTS);
+      if (requests.length > 0) return requests;
+    } catch (e) {
+      console.error("IndexedDB read error:", e);
+    }
+  }
+  return getStoredRequestsFromLocalStorage();
+};
+
+const saveRequests = async (requests: SOSRequest[]) => {
+  // Always save to localStorage as backup
+  saveRequestsToLocalStorage(requests);
+  
+  if (isIndexedDBAvailable()) {
+    try {
+      await putMany(STORE_NAMES.SOS_REQUESTS, requests);
+    } catch (e) {
+      console.error("IndexedDB write error:", e);
+    }
+  }
 };
 
 export const SOSProvider = ({ children }: { children: ReactNode }) => {
@@ -54,7 +80,8 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const initFirestore = async () => {
       if (!isFirebaseConfigured) {
-        setRequests(getStoredRequests());
+        const storedRequests = await getStoredRequests();
+        setRequests(storedRequests);
         setIsLoading(false);
         return;
       }
@@ -62,7 +89,8 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
       try {
         const db = await getFirebaseDb();
         if (!db) {
-          setRequests(getStoredRequests());
+          const storedRequests = await getStoredRequests();
+          setRequests(storedRequests);
           setIsLoading(false);
           return;
         }
@@ -72,22 +100,24 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
         
         unsubscribeRef.current = onSnapshot(
           q,
-          (snapshot) => {
+          async (snapshot) => {
             const data: SOSRequest[] = [];
             snapshot.forEach((d) => data.push({ id: d.id, ...d.data() } as SOSRequest));
             setRequests(data);
-            saveRequests(data);
+            await saveRequests(data);
             setIsLoading(false);
           },
-          (error) => {
+          async (error) => {
             console.error("Firestore error:", error);
-            setRequests(getStoredRequests());
+            const storedRequests = await getStoredRequests();
+            setRequests(storedRequests);
             setIsLoading(false);
           }
         );
       } catch (error) {
         console.error("Firebase init error:", error);
-        setRequests(getStoredRequests());
+        const storedRequests = await getStoredRequests();
+        setRequests(storedRequests);
         setIsLoading(false);
       }
     };
@@ -97,7 +127,9 @@ export const SOSProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!isLoading) saveRequests(requests);
+    if (!isLoading) {
+      saveRequests(requests);
+    }
   }, [requests, isLoading]);
 
   const createRequest = async (
