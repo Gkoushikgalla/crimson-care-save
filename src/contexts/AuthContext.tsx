@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useRef, useCallback } from "react";
 import { isFirebaseConfigured, getFirebaseDb, getFirebaseAuth } from "@/lib/firebase";
 import { registrationSchema, loginSchema, safeValidate } from "@/lib/validation";
+import { getAll, getById, put, getByIndex, initializeDB, isIndexedDBAvailable, STORE_NAMES } from "@/lib/indexedDB";
 
 export interface DonorStats {
   totalDonations: number;
@@ -95,6 +96,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Initialize auth state
   useEffect(() => {
     const initAuth = async () => {
+      // Initialize IndexedDB first
+      if (isIndexedDBAvailable()) {
+        await initializeDB();
+      }
+      
       // Check sessionStorage for current session (more secure than localStorage)
       const sessionUserId = sessionStorage.getItem("crimsoncare_session_id");
       
@@ -172,8 +178,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // Fallback: Load from localStorage (demo mode)
+    // Fallback: Load from IndexedDB (demo mode)
     try {
+      if (isIndexedDBAvailable()) {
+        const foundUser = await getById<StoredUser>(STORE_NAMES.USERS, userId);
+        if (foundUser) {
+          const { hasPassword, ...safeUser } = foundUser;
+          setUser(safeUser);
+          sessionStorage.setItem("crimsoncare_session_id", userId);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // Final fallback to localStorage
       const stored = localStorage.getItem("crimsoncare_users");
       if (stored) {
         const users = JSON.parse(stored) as StoredUser[];
@@ -185,7 +203,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     } catch (e) {
-      console.error("Local storage error:", e);
+      console.error("Storage error:", e);
     }
     setIsLoading(false);
   };
@@ -258,8 +276,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Fallback: Store in localStorage (demo mode) - store hash, not password
+    // Fallback: Store in IndexedDB (demo mode) - store hash, not password
     try {
+      if (isIndexedDBAvailable()) {
+        // Check if email exists using index
+        const existingUsers = await getByIndex<StoredUser>(STORE_NAMES.USERS, "email", newUser.email);
+        if (existingUsers.length > 0) {
+          return { success: false, error: "Email already registered. Please login instead." };
+        }
+
+        // Store with password hash for demo mode verification
+        const userToStore = { ...newUser, passwordHash };
+        await put(STORE_NAMES.USERS, userToStore);
+        
+        const { hasPassword, ...safeUser } = newUser;
+        setUser(safeUser);
+        sessionStorage.setItem("crimsoncare_session_id", newUser.id);
+        return { success: true };
+      }
+      
+      // Fallback to localStorage
       const stored = localStorage.getItem("crimsoncare_users");
       const users: any[] = stored ? JSON.parse(stored) : [];
       
@@ -267,7 +303,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { success: false, error: "Email already registered. Please login instead." };
       }
 
-      // Store with password hash for demo mode verification
       const userToStore = { ...newUser, passwordHash };
       users.push(userToStore);
       localStorage.setItem("crimsoncare_users", JSON.stringify(users));
@@ -277,7 +312,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       sessionStorage.setItem("crimsoncare_session_id", newUser.id);
       return { success: true };
     } catch (e) {
-      console.error("Local storage error:", e);
+      console.error("Storage error:", e);
       return { success: false, error: "Registration failed. Please try again." };
     }
   };
@@ -309,12 +344,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Fallback: Check localStorage with hash comparison
+    // Fallback: Check IndexedDB with hash comparison
     try {
+      const passwordHash = await simpleHash(password);
+      
+      if (isIndexedDBAvailable()) {
+        const users = await getByIndex<any>(STORE_NAMES.USERS, "email", normalizedEmail);
+        const foundUser = users.find((u: any) => u.passwordHash === passwordHash);
+        
+        if (foundUser) {
+          const { passwordHash: _, hasPassword, ...safeUser } = foundUser;
+          setUser(safeUser);
+          sessionStorage.setItem("crimsoncare_session_id", foundUser.id);
+          return { success: true };
+        }
+      }
+      
+      // Fallback to localStorage
       const stored = localStorage.getItem("crimsoncare_users");
       if (stored) {
         const users = JSON.parse(stored);
-        const passwordHash = await simpleHash(password);
         const foundUser = users.find((u: any) => 
           u.email.toLowerCase() === normalizedEmail && u.passwordHash === passwordHash
         );
@@ -327,7 +376,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     } catch (e) {
-      console.error("Local storage error:", e);
+      console.error("Storage error:", e);
     }
     
     return { success: false, error: "Invalid email or password" };
@@ -435,8 +484,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Fallback for demo mode
+    // Fallback for demo mode - use IndexedDB
     try {
+      if (isIndexedDBAvailable()) {
+        const donors = await getByIndex<any>(STORE_NAMES.USERS, "bloodType", bloodType);
+        return donors
+          .filter((u: any) => u.role === "donor")
+          .map(({ passwordHash, hasPassword, ...u }: any) => u);
+      }
+      
+      // Fallback to localStorage
       const stored = localStorage.getItem("crimsoncare_users");
       if (stored) {
         const users = JSON.parse(stored);
@@ -445,7 +502,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .map(({ passwordHash, hasPassword, ...u }: any) => u);
       }
     } catch (e) {
-      console.error("Local storage error:", e);
+      console.error("Storage error:", e);
     }
     
     return [];
