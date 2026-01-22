@@ -70,15 +70,15 @@ const HospitalDashboard = () => {
       // Show sample data if no requests
       return [
         {
-          id: "sample-1",
-          patientName: "Sample Patient",
-          bloodType: "O-",
-          units: 3,
+          id: "sample-manikanta",
+          patientName: "Manikanta",
+          bloodType: "B+",
+          units: 2,
           urgency: "critical" as const,
-          status: "searching" as const,
-          matchedDonors: 5,
-          confirmedDonors: 2,
-          createdAt: "Demo data",
+          status: "in_progress" as const,
+          matchedDonors: 3,
+          confirmedDonors: 1,
+          createdAt: "10 min ago",
         },
       ];
     }
@@ -96,9 +96,8 @@ const HospitalDashboard = () => {
   }, [getRequestsByHospital, hospital.name]);
 
   const confirmedDonors = [
-    { id: 1, name: "John D.", bloodType: "O-", distance: "2.1 km", eta: "15 min", phone: "+1 555-0123" },
+    { id: 1, name: "Hrishikesh", bloodType: "B+", distance: "2.1 km", eta: "15 min", phone: "+91 98765-43210" },
     { id: 2, name: "Sarah M.", bloodType: "O-", distance: "3.5 km", eta: "20 min", phone: "+1 555-0456" },
-    { id: 3, name: "Mike R.", bloodType: "A+", distance: "1.8 km", eta: "12 min", phone: "+1 555-0789" },
   ];
 
   // Get donations for this hospital from context

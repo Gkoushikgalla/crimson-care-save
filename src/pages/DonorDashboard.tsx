@@ -76,6 +76,23 @@ const DonorDashboard = () => {
   // Get SOS alerts from context
   const recentAlerts = useMemo(() => {
     const requests = getActiveRequests();
+    if (requests.length === 0) {
+      // Show sample alert if no active requests
+      return [
+        {
+          id: "sample-manikanta",
+          hospital: "City General Hospital",
+          patientName: "Manikanta",
+          bloodType: "B+",
+          urgency: "critical" as const,
+          distance: "~2.5 km",
+          time: "10 min ago",
+          units: 2,
+          address: "123 Medical Center Road",
+          phone: "+91 98765-43210",
+        },
+      ];
+    }
     return requests.slice(0, 5).map((req) => ({
       id: req.id,
       hospital: req.hospitalName,
