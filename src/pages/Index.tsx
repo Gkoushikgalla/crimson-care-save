@@ -4,6 +4,7 @@ import HeroSection from "@/components/home/HeroSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
 import HowItWorksSection from "@/components/home/HowItWorksSection";
 import BloodTypesSection from "@/components/home/BloodTypesSection";
+import ComparisonSection from "@/components/home/ComparisonSection";
 import CTASection from "@/components/home/CTASection";
 
 const Index = () => {
@@ -13,6 +14,7 @@ const Index = () => {
       <main>
         <HeroSection />
         <FeaturesSection />
+        <ComparisonSection />
         <HowItWorksSection />
         <BloodTypesSection />
         <CTASection />
