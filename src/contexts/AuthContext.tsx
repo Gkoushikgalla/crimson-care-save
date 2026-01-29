@@ -43,8 +43,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (data: Partial<User>) => Promise<void>;
   updateDonorStats: (stats: Partial<DonorStats>) => Promise<void>;
-  // Only expose users relevant to current user's role, not all users
-  getDonorsByBloodType: (bloodType: string) => Promise<User[]>;
+  // Note: getDonorsByBloodType was removed for privacy - donors are matched via SOS flow instead
 }
 
 interface RegisterData {
@@ -78,13 +77,91 @@ const getInitialDonorStats = (): DonorStats => ({
   ],
 });
 
-// Simple hash function for demo - in production, use bcrypt on server
-const simpleHash = async (password: string): Promise<string> => {
+// PBKDF2-based password hashing for demo mode
+// Uses unique salt per user and high iteration count
+// Note: In production with Firebase, Firebase Auth handles password security
+const PBKDF2_ITERATIONS = 100000;
+
+const generateSalt = (): Uint8Array => {
+  return crypto.getRandomValues(new Uint8Array(16));
+};
+
+const arrayToHex = (arr: Uint8Array): string => {
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+const hexToArray = (hex: string): Uint8Array => {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return bytes;
+};
+
+const deriveKey = async (password: string, salt: Uint8Array): Promise<string> => {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password + "crimsoncare_salt_2024");
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const passwordBuffer = encoder.encode(password);
+  
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    passwordBuffer,
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits']
+  );
+  
+  // Create a new ArrayBuffer to satisfy TypeScript's strict type checking
+  const saltBuffer = new Uint8Array(salt).buffer;
+  
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: new Uint8Array(saltBuffer),
+      iterations: PBKDF2_ITERATIONS,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    256
+  );
+  
+  return arrayToHex(new Uint8Array(derivedBits));
+};
+
+// Creates a secure hash with unique salt - returns "salt:hash" format
+const secureHash = async (password: string): Promise<string> => {
+  const salt = generateSalt();
+  const hash = await deriveKey(password, salt);
+  return `${arrayToHex(salt)}:${hash}`;
+};
+
+// Verifies password against stored "salt:hash" format
+const verifyPassword = async (password: string, storedHash: string): Promise<boolean> => {
+  const [saltHex, expectedHash] = storedHash.split(':');
+  if (!saltHex || !expectedHash) return false;
+  
+  const salt = hexToArray(saltHex);
+  const computedHash = await deriveKey(password, salt);
+  
+  // Constant-time comparison to prevent timing attacks
+  if (computedHash.length !== expectedHash.length) return false;
+  let result = 0;
+  for (let i = 0; i < computedHash.length; i++) {
+    result |= computedHash.charCodeAt(i) ^ expectedHash.charCodeAt(i);
+  }
+  return result === 0;
+};
+
+// Log demo mode security warning on startup
+const logDemoModeWarning = () => {
+  console.warn(
+    '%c⚠️ DEMO MODE SECURITY WARNING',
+    'color: #ff6b6b; font-size: 16px; font-weight: bold;'
+  );
+  console.warn(
+    'This application is running in demo mode without Firebase. ' +
+    'Password hashes are stored in browser storage. ' +
+    'For production use, configure Firebase credentials for proper security.'
+  );
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -220,7 +297,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { success: false, error: "Invalid role selection" };
     }
 
-    const passwordHash = await simpleHash(userData.password);
+    const passwordHash = await secureHash(userData.password);
     const userId = crypto.randomUUID?.() || Math.random().toString(36).slice(2);
     
     const newUser: StoredUser = {
@@ -344,19 +421,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Fallback: Check IndexedDB with hash comparison
+    // Fallback: Check IndexedDB with secure password verification
     try {
-      const passwordHash = await simpleHash(password);
-      
       if (isIndexedDBAvailable()) {
         const users = await getByIndex<any>(STORE_NAMES.USERS, "email", normalizedEmail);
-        const foundUser = users.find((u: any) => u.passwordHash === passwordHash);
         
-        if (foundUser) {
-          const { passwordHash: _, hasPassword, ...safeUser } = foundUser;
-          setUser(safeUser);
-          sessionStorage.setItem("crimsoncare_session_id", foundUser.id);
-          return { success: true };
+        for (const u of users) {
+          if (u.passwordHash && await verifyPassword(password, u.passwordHash)) {
+            const { passwordHash: _, hasPassword, ...safeUser } = u;
+            setUser(safeUser);
+            sessionStorage.setItem("crimsoncare_session_id", u.id);
+            return { success: true };
+          }
         }
       }
       
@@ -364,15 +440,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const stored = localStorage.getItem("crimsoncare_users");
       if (stored) {
         const users = JSON.parse(stored);
-        const foundUser = users.find((u: any) => 
-          u.email.toLowerCase() === normalizedEmail && u.passwordHash === passwordHash
-        );
         
-        if (foundUser) {
-          const { passwordHash: _, hasPassword, ...safeUser } = foundUser;
-          setUser(safeUser);
-          sessionStorage.setItem("crimsoncare_session_id", foundUser.id);
-          return { success: true };
+        for (const u of users) {
+          if (u.email.toLowerCase() === normalizedEmail && 
+              u.passwordHash && 
+              await verifyPassword(password, u.passwordHash)) {
+            const { passwordHash: _, hasPassword, ...safeUser } = u;
+            setUser(safeUser);
+            sessionStorage.setItem("crimsoncare_session_id", u.id);
+            return { success: true };
+          }
         }
       }
     } catch (e) {
@@ -451,62 +528,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(updated);
   };
 
-  // Query donors by blood type - role-based access
-  const getDonorsByBloodType = async (bloodType: string): Promise<User[]> => {
-    if (!user) return [];
-    
-    // Only hospitals and blood banks can query donors
-    if (!["hospital", "bloodbank", "admin"].includes(user.role)) {
-      return [];
-    }
-
-    if (isFirebaseConfigured) {
-      try {
-        const db = await getFirebaseDb();
-        if (db) {
-          const { collection, query, where, getDocs } = await import("firebase/firestore");
-          const q = query(
-            collection(db, "users"),
-            where("role", "==", "donor"),
-            where("bloodType", "==", bloodType)
-          );
-          const snapshot = await getDocs(q);
-          const donors: User[] = [];
-          snapshot.forEach((doc) => {
-            const data = doc.data() as StoredUser;
-            const { hasPassword, ...safeUser } = data;
-            donors.push({ ...safeUser, id: doc.id });
-          });
-          return donors;
-        }
-      } catch (e) {
-        console.error("Query donors error:", e);
-      }
-    }
-
-    // Fallback for demo mode - use IndexedDB
-    try {
-      if (isIndexedDBAvailable()) {
-        const donors = await getByIndex<any>(STORE_NAMES.USERS, "bloodType", bloodType);
-        return donors
-          .filter((u: any) => u.role === "donor")
-          .map(({ passwordHash, hasPassword, ...u }: any) => u);
-      }
-      
-      // Fallback to localStorage
-      const stored = localStorage.getItem("crimsoncare_users");
-      if (stored) {
-        const users = JSON.parse(stored);
-        return users
-          .filter((u: any) => u.role === "donor" && u.bloodType === bloodType)
-          .map(({ passwordHash, hasPassword, ...u }: any) => u);
-      }
-    } catch (e) {
-      console.error("Storage error:", e);
-    }
-    
-    return [];
-  };
+  // Note: getDonorsByBloodType was removed for privacy reasons
+  // Donor matching now happens through the SOS request flow where donors voluntarily accept requests
+  // This is more privacy-preserving as donors opt-in per request rather than having their PII exposed
 
   return (
     <AuthContext.Provider value={{ 
@@ -518,7 +542,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       logout, 
       updateUser, 
       updateDonorStats,
-      getDonorsByBloodType,
     }}>
       {children}
     </AuthContext.Provider>
