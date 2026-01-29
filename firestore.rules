@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to get user role from users collection
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+    
+    // Helper to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper to check if user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper to check if user has specific role
+    function hasRole(role) {
+      return isAuthenticated() && getUserRole(request.auth.uid) == role;
+    }
+    
+    // Helper to check if user has any of the specified roles
+    function hasAnyRole(roles) {
+      return isAuthenticated() && getUserRole(request.auth.uid) in roles;
+    }
+    
+    // Users collection - strict access control
+    match /users/{userId} {
+      // Users can only read their own profile, admins can read all
+      allow read: if isOwner(userId) || hasRole('admin');
+      
+      // Users can create their own profile, but cannot set role to admin
+      allow create: if isOwner(userId) && 
+        request.resource.data.role != 'admin' &&
+        request.resource.data.role in ['donor', 'hospital', 'bloodbank'];
+      
+      // Users can update their own profile, but cannot change role
+      allow update: if isOwner(userId) && 
+        request.resource.data.role == resource.data.role;
+      
+      // Only admins can delete users
+      allow delete: if hasRole('admin');
+    }
+    
+    // SOS requests collection
+    match /sosRequests/{requestId} {
+      // All authenticated users can read SOS requests (donors need to see alerts)
+      allow read: if isAuthenticated();
+      
+      // Only hospitals, blood banks, and admins can create SOS requests
+      allow create: if hasAnyRole(['hospital', 'bloodbank', 'admin']) &&
+        request.resource.data.createdBy == request.auth.uid;
+      
+      // Creator or admin can update
+      allow update: if isAuthenticated() && 
+        (resource.data.createdBy == request.auth.uid || hasRole('admin'));
+      
+      // Creator or admin can delete
+      allow delete: if isAuthenticated() && 
+        (resource.data.createdBy == request.auth.uid || hasRole('admin'));
+    }
+    
+    // Donations collection
+    match /donations/{donationId} {
+      // Authenticated users can read donations
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create donations (donors accepting requests)
+      allow create: if isAuthenticated() &&
+        request.resource.data.donorId == request.auth.uid;
+      
+      // Donor, hospital, blood bank, or admin can update
+      allow update: if isAuthenticated() && 
+        (resource.data.donorId == request.auth.uid || 
+         hasAnyRole(['hospital', 'bloodbank', 'admin']));
+      
+      // Only admin can delete donations
+      allow delete: if hasRole('admin');
+    }
+    
+    // Default deny - block access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
