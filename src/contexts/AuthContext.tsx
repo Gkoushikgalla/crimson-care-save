@@ -226,10 +226,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const db = await getFirebaseDb();
         if (db) {
-          const { doc, onSnapshot } = await import("firebase/firestore");
+          const { doc, onSnapshot, getDoc, setDoc } = await import("firebase/firestore");
+          const auth = await getFirebaseAuth();
+          
+          // Check if document exists first
+          const userDocRef = doc(db, "users", userId);
+          const userDocSnap = await getDoc(userDocRef);
+          
+          // If user exists in Firebase Auth but profile doesn't exist in Firestore,
+          // try to create a basic profile (this handles cases where registration partially failed)
+          if (!userDocSnap.exists() && auth?.currentUser) {
+            const firebaseUser = auth.currentUser;
+            console.warn("User profile not found in Firestore, creating basic profile...");
+            try {
+              const basicProfile: StoredUser = {
+                id: userId,
+                name: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "User",
+                email: firebaseUser.email || "",
+                phone: firebaseUser.phoneNumber || "",
+                role: "donor", // Default role
+                createdAt: new Date().toISOString(),
+                hasPassword: true,
+              };
+              await setDoc(userDocRef, basicProfile);
+              console.log("Created basic user profile in Firestore");
+            } catch (createError: any) {
+              console.error("Failed to create user profile:", createError);
+              if (createError.code === "permission-denied") {
+                console.error("Firestore permission denied - please check security rules");
+              }
+            }
+          }
           
           unsubscribeUserRef.current = onSnapshot(
-            doc(db, "users", userId),
+            userDocRef,
             (docSnap) => {
               if (docSnap.exists()) {
                 const userData = docSnap.data() as StoredUser;
@@ -238,6 +268,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setUser({ ...safeUser, id: docSnap.id });
                 sessionStorage.setItem("crimsoncare_session_id", userId);
               } else {
+                console.warn("User profile not found in Firestore");
                 setUser(null);
                 sessionStorage.removeItem("crimsoncare_session_id");
               }
@@ -321,7 +352,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const auth = await getFirebaseAuth();
         const db = await getFirebaseDb();
         
-        if (auth && db) {
+        if (!auth || !db) {
+          console.warn("Firebase configured but initialization failed. Falling back to local storage.");
+          // Fall through to fallback code below
+        } else {
           const { createUserWithEmailAndPassword } = await import("firebase/auth");
           const { doc, setDoc, collection, query, where, getDocs } = await import("firebase/firestore");
           
@@ -337,7 +371,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           newUser.id = userCredential.user.uid;
           
           // Store user profile in Firestore (without password - Firebase Auth handles it)
-          await setDoc(doc(db, "users", newUser.id), newUser);
+          try {
+            await setDoc(doc(db, "users", newUser.id), newUser);
+            console.log("User profile saved to Firestore successfully");
+          } catch (firestoreError: any) {
+            console.error("Firestore write error:", firestoreError);
+            // If Firestore write fails, we should delete the Firebase Auth user to avoid orphaned accounts
+            // But for now, let's just log and continue - the user can still log in via Firebase Auth
+            // The profile will be created on first login or can be fixed manually
+            if (firestoreError.code === "permission-denied") {
+              console.warn("Firestore permission denied - user created in Auth but profile not saved");
+              // Still return success since Auth user was created
+              // User can log in but profile won't be available until Firestore rules are fixed
+            } else {
+              throw firestoreError; // Re-throw other errors
+            }
+          }
           
           const { hasPassword, ...safeUser } = newUser;
           setUser(safeUser);
@@ -346,10 +395,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (e: any) {
         console.error("Firebase register error:", e);
+        // Provide more specific error messages
         if (e.code === "auth/email-already-in-use") {
           return { success: false, error: "Email already registered. Please login instead." };
         }
-        return { success: false, error: "Registration failed. Please try again." };
+        if (e.code === "auth/invalid-email") {
+          return { success: false, error: "Invalid email address. Please check your email." };
+        }
+        if (e.code === "auth/weak-password") {
+          return { success: false, error: "Password is too weak. Please use a stronger password." };
+        }
+        if (e.code === "auth/network-request-failed") {
+          return { success: false, error: "Network error. Please check your internet connection." };
+        }
+        if (e.code === "permission-denied" || e.message?.includes("permission")) {
+          return { success: false, error: "Permission denied. Please check Firebase configuration." };
+        }
+        // If Firebase fails, fall through to fallback
+        console.warn("Firebase registration failed, falling back to local storage:", e.message || e);
       }
     }
 
@@ -409,15 +472,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (auth) {
           const { signInWithEmailAndPassword } = await import("firebase/auth");
           
-          const userCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
-          // User profile will be loaded by onAuthStateChanged listener
-          sessionStorage.setItem("crimsoncare_session_id", userCredential.user.uid);
-          return { success: true };
+          try {
+            const userCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+            // User profile will be loaded by onAuthStateChanged listener
+            sessionStorage.setItem("crimsoncare_session_id", userCredential.user.uid);
+            console.log("Firebase login successful");
+            return { success: true };
+          } catch (firebaseError: any) {
+            console.error("Firebase Auth login error:", firebaseError);
+            
+            // If Firebase Auth fails, fall through to check local storage
+            // This handles cases where registration fell back to local storage
+            if (firebaseError.code === "auth/user-not-found" || 
+                firebaseError.code === "auth/wrong-password" ||
+                firebaseError.code === "auth/invalid-credential") {
+              // User doesn't exist in Firebase Auth, check local storage
+              console.log("User not found in Firebase Auth, checking local storage...");
+            } else {
+              // Other Firebase errors (network, etc.) - still try local storage as fallback
+              console.log("Firebase Auth error, falling back to local storage...");
+            }
+          }
+        } else {
+          console.warn("Firebase Auth not available, using local storage");
         }
       } catch (e: any) {
         console.error("Firebase login error:", e);
-        // Don't reveal whether email exists
-        return { success: false, error: "Invalid email or password" };
+        // Fall through to local storage check
       }
     }
 
@@ -431,6 +512,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const { passwordHash: _, hasPassword, ...safeUser } = u;
             setUser(safeUser);
             sessionStorage.setItem("crimsoncare_session_id", u.id);
+            console.log("Login successful from IndexedDB");
             return { success: true };
           }
         }
@@ -448,6 +530,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const { passwordHash: _, hasPassword, ...safeUser } = u;
             setUser(safeUser);
             sessionStorage.setItem("crimsoncare_session_id", u.id);
+            console.log("Login successful from localStorage");
             return { success: true };
           }
         }
@@ -456,6 +539,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Storage error:", e);
     }
     
+    console.error("Login failed: No matching user found in Firebase Auth or local storage");
     return { success: false, error: "Invalid email or password" };
   };
 

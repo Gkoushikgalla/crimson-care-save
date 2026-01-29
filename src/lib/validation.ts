@@ -73,9 +73,9 @@ export const sosRequestSchema = z.object({
   urgency: z.enum(['critical', 'high', 'moderate']),
   notes: z.string().max(500, { message: "Notes must be less than 500 characters" }).optional(),
   hospitalName: z.string().trim().min(1).max(200),
-  hospitalAddress: z.string().trim().min(1).max(500),
+  hospitalAddress: z.string().trim().max(500).optional().or(z.literal("")), // Optional field
   contactPhone: phoneSchema,
-  contactEmail: emailSchema,
+  contactEmail: emailSchema.optional().or(z.literal("")), // Optional field
 });
 
 // Donation schema

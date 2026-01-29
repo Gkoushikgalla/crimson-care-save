@@ -92,7 +92,8 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
     // For public requests, additional fields are required
     const hospitalName = isPublic ? formData.hospitalName.trim() : (user?.hospitalName || "Hospital");
     const contactPhone = isPublic ? formData.contactPhone.trim() : (user?.phone || "");
-    const contactEmail = isPublic ? formData.contactEmail.trim() : (user?.email || "");
+    const contactEmail = isPublic ? (formData.contactEmail.trim() || user?.email || "") : (user?.email || "");
+    const hospitalAddress = formData.hospitalAddress.trim(); // Optional field
 
     if (isPublic) {
       if (!hospitalName || hospitalName.length > 200) {
@@ -119,11 +120,11 @@ const SOSRequestDialog = ({ trigger, isPublic = false, onSuccess }: SOSRequestDi
         bloodType: formData.bloodType,
         units,
         urgency: formData.urgency as "critical" | "high" | "moderate",
-        notes: formData.notes.trim(),
+        notes: formData.notes.trim() || "",
         hospitalName,
-        hospitalAddress: formData.hospitalAddress.trim().slice(0, 500),
+        hospitalAddress: hospitalAddress || "", // Optional field
         contactPhone,
-        contactEmail: contactEmail.toLowerCase(),
+        contactEmail: contactEmail.toLowerCase() || "",
         createdBy: user?.id || "anonymous",
         source: isPublic ? "public" : "hospital",
       });

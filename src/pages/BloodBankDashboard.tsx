@@ -40,9 +40,11 @@ const BloodBankDashboard = () => {
 
   const bloodBankName = user?.bloodBankName || "Central Blood Bank";
 
-  // Get active SOS requests
+  // Get active SOS requests - blood banks see ALL requests
   const activeSOSRequests = useMemo(() => {
-    return getActiveRequests().slice(0, 5);
+    const requests = getActiveRequests();
+    console.log(`[BloodBankDashboard] Found ${requests.length} active SOS requests`);
+    return requests.slice(0, 5);
   }, [getActiveRequests]);
 
   // Get donations for this blood bank

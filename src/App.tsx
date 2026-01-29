@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { SOSProvider } from "@/contexts/SOSContext";
 import { DonationProvider } from "@/contexts/DonationContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import LocationPermissionHandler from "@/components/LocationPermissionHandler";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -27,6 +28,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <LocationPermissionHandler />
             <BrowserRouter>
               <Routes>
                 {/* Public routes */}

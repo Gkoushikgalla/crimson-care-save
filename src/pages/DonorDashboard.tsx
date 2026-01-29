@@ -73,39 +73,80 @@ const DonorDashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
-  // Get SOS alerts from context
+  // Blood type compatibility helper
+  const canDonate = (donorType: string, recipientType: string): boolean => {
+    // Universal donor (O-) can donate to everyone
+    if (donorType === "O-") return true;
+    
+    // O+ can donate to all positive types
+    if (donorType === "O+") {
+      return recipientType.includes("+");
+    }
+    
+    // A- can donate to A-, A+, AB-, AB+
+    if (donorType === "A-") {
+      return recipientType.startsWith("A") || recipientType.startsWith("AB");
+    }
+    
+    // A+ can donate to A+, AB+
+    if (donorType === "A+") {
+      return recipientType === "A+" || recipientType === "AB+";
+    }
+    
+    // B- can donate to B-, B+, AB-, AB+
+    if (donorType === "B-") {
+      return recipientType.startsWith("B") || recipientType.startsWith("AB");
+    }
+    
+    // B+ can donate to B+, AB+
+    if (donorType === "B+") {
+      return recipientType === "B+" || recipientType === "AB+";
+    }
+    
+    // AB- can donate to AB-, AB+
+    if (donorType === "AB-") {
+      return recipientType.startsWith("AB");
+    }
+    
+    // AB+ can only donate to AB+
+    if (donorType === "AB+") {
+      return recipientType === "AB+";
+    }
+    
+    return false;
+  };
+
+  // Get SOS alerts from context - show real alerts only, no dummy data
   const recentAlerts = useMemo(() => {
     const requests = getActiveRequests();
-    if (requests.length === 0) {
-      // Show sample alert if no active requests
-      return [
-        {
-          id: "sample-manikanta",
-          hospital: "City General Hospital",
-          patientName: "Manikanta",
-          bloodType: "B+",
-          urgency: "critical" as const,
-          distance: "~2.5 km",
-          time: "10 min ago",
-          units: 2,
-          address: "123 Medical Center Road",
-          phone: "+91 98765-43210",
-        },
-      ];
-    }
-    return requests.slice(0, 5).map((req) => ({
+    console.log(`[DonorDashboard] Found ${requests.length} active SOS requests`);
+    
+    // Filter alerts that match user's blood type compatibility
+    const matchingAlerts = user?.bloodType 
+      ? requests.filter(req => {
+          const canDonateTo = canDonate(user.bloodType!, req.bloodType);
+          if (!canDonateTo) {
+            console.log(`[DonorDashboard] Filtering out ${req.bloodType} request (donor: ${user.bloodType})`);
+          }
+          return canDonateTo;
+        })
+      : requests; // Show all if user hasn't set blood type
+    
+    console.log(`[DonorDashboard] Showing ${matchingAlerts.length} matching alerts for donor ${user?.bloodType || "unknown"}`);
+    
+    return matchingAlerts.slice(0, 5).map((req) => ({
       id: req.id,
       hospital: req.hospitalName,
       patientName: req.patientName,
       bloodType: req.bloodType,
       urgency: req.urgency,
-      distance: "~3 km",
+      distance: "~3 km", // TODO: Calculate actual distance using geolocation
       time: getTimeAgo(req.createdAt),
       units: req.units,
-      address: req.hospitalAddress,
+      address: req.hospitalAddress || "Address not provided",
       phone: req.contactPhone,
     }));
-  }, [getActiveRequests]);
+  }, [getActiveRequests, user?.bloodType]);
 
   function getTimeAgo(dateString: string): string {
     const diffMs = Date.now() - new Date(dateString).getTime();
@@ -471,44 +512,89 @@ const DonorDashboard = () => {
         );
 
       case "alerts":
+        const allActiveRequests = getActiveRequests();
+        // Get all matching alerts (not just first 5) - filter by blood type compatibility
+        const allMatchingAlerts = user?.bloodType 
+          ? allActiveRequests.filter(req => canDonate(user.bloodType!, req.bloodType))
+          : allActiveRequests;
+        
         return (
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-display font-bold">SOS Alerts</h2>
               <Badge variant="destructive" className="animate-pulse">
-                {recentAlerts.length} Active
+                {allMatchingAlerts.length} Active
               </Badge>
             </div>
             <Card className="shadow-card">
               <CardContent className="p-6 space-y-4">
-                {recentAlerts.map((alert) => (
-                  <div key={alert.id} className="p-4 rounded-xl border border-border">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="font-semibold">{alert.hospital}</p>
-                        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" /> {alert.distance}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> {alert.time}
-                          </span>
+                {allMatchingAlerts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertTriangle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-semibold mb-2">No Active SOS Alerts</p>
+                    {user?.bloodType ? (
+                      <p className="text-muted-foreground">
+                        There are currently no emergency requests matching your blood type ({user.bloodType}).
+                        <br />
+                        We'll notify you as soon as a matching request comes in!
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        Update your profile with your blood type to see matching emergency requests.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  allMatchingAlerts.map((req) => {
+                    const alert = {
+                      id: req.id,
+                      hospital: req.hospitalName,
+                      patientName: req.patientName,
+                      bloodType: req.bloodType,
+                      urgency: req.urgency,
+                      distance: "~3 km",
+                      time: getTimeAgo(req.createdAt),
+                      units: req.units,
+                      address: req.hospitalAddress || "Address not provided",
+                      phone: req.contactPhone,
+                    };
+                    return (
+                      <div key={alert.id} className="p-4 rounded-xl border border-border">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-crimson flex items-center justify-center">
+                              <span className="text-lg font-bold text-primary-foreground">{alert.bloodType}</span>
+                            </div>
+                            <div>
+                              <p className="font-semibold">{alert.hospital}</p>
+                              <p className="text-sm text-muted-foreground">Patient: {alert.patientName}</p>
+                              <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" /> {alert.distance}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" /> {alert.time}
+                                </span>
+                                <span>{alert.units} unit(s) needed</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Badge className={alert.urgency === "critical" ? "bg-destructive" : "bg-warning"}>
+                            {alert.urgency.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="hero" size="sm" className="flex-1" onClick={() => handleAccept(alert.id)}>
+                            Accept
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => navigate(`/sos/${alert.id}`)}>
+                            Details
+                          </Button>
                         </div>
                       </div>
-                      <Badge className={alert.urgency === "critical" ? "bg-destructive" : "bg-warning"}>
-                        {alert.urgency.toUpperCase()}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="hero" size="sm" className="flex-1" onClick={() => handleAccept(alert.id)}>
-                        Accept
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/sos/${alert.id}`)}>
-                        Details
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })
+                )}
               </CardContent>
             </Card>
           </div>
@@ -643,23 +729,39 @@ const DonorDashboard = () => {
                   <Badge variant="destructive" className="animate-pulse">{recentAlerts.length} Active</Badge>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {recentAlerts.map((alert) => (
-                    <div key={alert.id} className="p-4 rounded-xl border border-border">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-semibold">{alert.hospital}</p>
-                          <p className="text-sm text-muted-foreground">{alert.distance} • {alert.time}</p>
-                        </div>
-                        <Badge className={alert.urgency === "critical" ? "bg-destructive" : "bg-warning"}>
-                          {alert.urgency.toUpperCase()}
-                        </Badge>
-                      </div>
-                      <Button variant="hero" size="sm" className="w-full" onClick={() => setActiveTab("alerts")}>
-                        View & Respond
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                  {recentAlerts.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">No active SOS alerts</p>
+                      {user?.bloodType ? (
+                        <p className="text-xs text-muted-foreground">
+                          We'll notify you when there are requests matching your blood type ({user.bloodType})
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Update your profile with your blood type to see matching requests
+                        </p>
+                      )}
                     </div>
-                  ))}
+                  ) : (
+                    recentAlerts.map((alert) => (
+                      <div key={alert.id} className="p-4 rounded-xl border border-border">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-semibold">{alert.hospital}</p>
+                            <p className="text-sm text-muted-foreground">{alert.distance} • {alert.time}</p>
+                          </div>
+                          <Badge className={alert.urgency === "critical" ? "bg-destructive" : "bg-warning"}>
+                            {alert.urgency.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <Button variant="hero" size="sm" className="w-full" onClick={() => navigate(`/sos/${alert.id}`)}>
+                          View & Respond
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
