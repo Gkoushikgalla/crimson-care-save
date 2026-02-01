@@ -3,8 +3,17 @@ import { Link } from "react-router-dom";
 import { Heart, ArrowRight, Droplets, Users, Clock, AlertTriangle } from "lucide-react";
 import heroBloodBg from "@/assets/hero-blood-bg.png";
 import SOSRequestDialog from "@/components/sos/SOSRequestDialog";
+import { useFirebaseStats } from "@/hooks/useFirebaseStats";
 
 const HeroSection = () => {
+  const { registeredDonors, successfulDonations, avgResponseTime, loading } = useFirebaseStats();
+
+  const stats = [
+    { icon: Users, value: loading ? "—" : registeredDonors.toLocaleString(), label: "Registered Donors" },
+    { icon: Droplets, value: loading ? "—" : successfulDonations.toLocaleString(), label: "Successful Donations" },
+    { icon: Clock, value: loading ? "—" : avgResponseTime, label: "Avg. Response Time" },
+  ];
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       {/* Background Image */}
@@ -77,11 +86,7 @@ const HeroSection = () => {
 
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto animate-slide-up" style={{ animationDelay: "0.3s" }}>
-            {[
-              { icon: Users, value: "50,000+", label: "Registered Donors" },
-              { icon: Droplets, value: "25,000+", label: "Successful Donations" },
-              { icon: Clock, value: "< 30min", label: "Avg. Response Time" },
-            ].map((stat, i) => (
+            {stats.map((stat, i) => (
               <div
                 key={i}
                 className="flex flex-col items-center p-6 rounded-2xl bg-card border border-border shadow-sm hover:shadow-md transition-shadow"
