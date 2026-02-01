@@ -27,30 +27,20 @@ import { toast } from "sonner";
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Mock admin data
+  // Real data - will be populated from context/API
   const stats = {
-    totalDonors: 52340,
-    totalHospitals: 156,
-    totalDonations: 28750,
-    activeSOSRequests: 23,
-    avgResponseTime: "24 min",
-    matchAccuracy: "94.5%",
-    donorRetention: "78%",
+    totalDonors: 0,
+    totalHospitals: 0,
+    totalDonations: 0,
+    activeSOSRequests: 0,
+    avgResponseTime: "--",
+    matchAccuracy: "--",
+    donorRetention: "--",
   };
 
-  const pendingHospitals = [
-    { id: 1, name: "Metro Health Center", license: "MHC-2024-001", submittedAt: "2 days ago", contact: "admin@metrohealth.com" },
-    { id: 2, name: "Valley Medical", license: "VM-2024-015", submittedAt: "3 days ago", contact: "info@valleymed.com" },
-    { id: 3, name: "Sunrise Hospital", license: "SH-2024-008", submittedAt: "5 days ago", contact: "reg@sunrise.com" },
-  ];
+  const pendingHospitals: { id: number; name: string; license: string; submittedAt: string; contact: string }[] = [];
 
-  const recentActivity = [
-    { type: "sos", message: "Critical SOS fulfilled - O- blood to City General", time: "5 min ago" },
-    { type: "donor", message: "New donor registered: John D. (O+)", time: "12 min ago" },
-    { type: "hospital", message: "St. Mary's Hospital verified", time: "1 hour ago" },
-    { type: "sos", message: "SOS request created by Metro Health", time: "2 hours ago" },
-    { type: "donation", message: "Donation recorded: Sarah M. at Blood Bank Central", time: "3 hours ago" },
-  ];
+  const recentActivity: { type: string; message: string; time: string }[] = [];
 
   const handleVerifyHospital = (id: number) => {
     toast.success("Hospital verified successfully!");
@@ -180,43 +170,50 @@ const AdminDashboard = () => {
               <CardDescription>Review and verify hospital registrations</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {pendingHospitals.map((hospital) => (
-                <div
-                  key={hospital.id}
-                  className="p-4 rounded-xl border border-border"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-foreground">{hospital.name}</p>
-                      <p className="text-sm text-muted-foreground">License: {hospital.license}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Submitted {hospital.submittedAt}
-                      </p>
-                    </div>
-                    <Badge variant="outline">Pending</Badge>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="success"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleVerifyHospital(hospital.id)}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Verify
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleRejectHospital(hospital.id)}
-                    >
-                      <XCircle className="h-4 w-4 mr-1" />
-                      Reject
-                    </Button>
-                  </div>
+              {pendingHospitals.length === 0 ? (
+                <div className="text-center py-8">
+                  <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No pending hospital verifications</p>
                 </div>
-              ))}
+              ) : (
+                pendingHospitals.map((hospital) => (
+                  <div
+                    key={hospital.id}
+                    className="p-4 rounded-xl border border-border"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-semibold text-foreground">{hospital.name}</p>
+                        <p className="text-sm text-muted-foreground">License: {hospital.license}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Submitted {hospital.submittedAt}
+                        </p>
+                      </div>
+                      <Badge variant="outline">Pending</Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleVerifyHospital(hospital.id)}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Verify
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleRejectHospital(hospital.id)}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -230,27 +227,34 @@ const AdminDashboard = () => {
               <CardDescription>Latest system events</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivity.map((activity, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div
-                      className={`w-2 h-2 rounded-full mt-2 ${
-                        activity.type === "sos"
-                          ? "bg-destructive"
-                          : activity.type === "donor"
-                          ? "bg-success"
-                          : activity.type === "hospital"
-                          ? "bg-info"
-                          : "bg-primary"
-                      }`}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{activity.message}</p>
-                      <p className="text-xs text-muted-foreground">{activity.time}</p>
+              {recentActivity.length === 0 ? (
+                <div className="text-center py-8">
+                  <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No recent activity</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentActivity.map((activity, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <div
+                        className={`w-2 h-2 rounded-full mt-2 ${
+                          activity.type === "sos"
+                            ? "bg-destructive"
+                            : activity.type === "donor"
+                            ? "bg-success"
+                            : activity.type === "hospital"
+                            ? "bg-info"
+                            : "bg-primary"
+                        }`}
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">{activity.message}</p>
+                        <p className="text-xs text-muted-foreground">{activity.time}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
               <Button variant="outline" className="w-full mt-4">
                 View All Activity
               </Button>

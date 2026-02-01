@@ -226,21 +226,8 @@ const DonorDashboard = () => {
     medicalNotes: "",
   });
 
-  // Fallback sample alerts if none exist
-  const displayAlerts = recentAlerts.length > 0 ? recentAlerts : [
-    {
-      id: "sample-1",
-      hospital: "City General Hospital",
-      patientName: "Sample Patient",
-      bloodType: donor.bloodType,
-      urgency: "critical" as const,
-      distance: "2.5 km",
-      time: "Demo",
-      units: 2,
-      address: "",
-      phone: "",
-    },
-  ];
+  // Use real alerts only
+  const displayAlerts = recentAlerts;
 
   // Get donation history from context first, fallback to user stats
   const contextDonations = useMemo(() => getDonationsByDonor(donorId), [getDonationsByDonor, donorId]);
