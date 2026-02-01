@@ -66,22 +66,6 @@ const HospitalDashboard = () => {
   // Get active requests from SOS context for this hospital
   const activeRequests = useMemo(() => {
     const requests = getRequestsByHospital(hospital.name);
-    if (requests.length === 0) {
-      // Show sample data if no requests
-      return [
-        {
-          id: "sample-manikanta",
-          patientName: "Manikanta",
-          bloodType: "B+",
-          units: 2,
-          urgency: "critical" as const,
-          status: "in_progress" as const,
-          matchedDonors: 3,
-          confirmedDonors: 1,
-          createdAt: "10 min ago",
-        },
-      ];
-    }
     return requests.map((req) => ({
       id: req.id,
       patientName: req.patientName,
@@ -94,11 +78,6 @@ const HospitalDashboard = () => {
       createdAt: getTimeAgo(req.createdAt),
     }));
   }, [getRequestsByHospital, hospital.name]);
-
-  const confirmedDonors = [
-    { id: 1, name: "Hrishikesh", bloodType: "B+", distance: "2.1 km", eta: "15 min", phone: "+91 98765-43210" },
-    { id: 2, name: "Sarah M.", bloodType: "O-", distance: "3.5 km", eta: "20 min", phone: "+1 555-0456" },
-  ];
 
   // Get donations for this hospital from context
   const hospitalDonations = useMemo(() => {
@@ -203,27 +182,33 @@ const HospitalDashboard = () => {
                 <CardDescription>Donors en route to your hospital</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {confirmedDonors.map((donor) => (
-                  <div key={donor.id} className="p-4 rounded-xl border border-border bg-success/5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-crimson flex items-center justify-center">
-                          <span className="text-sm font-bold text-primary-foreground">{donor.bloodType}</span>
-                        </div>
-                        <div>
-                          <p className="font-semibold">{donor.name}</p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <MapPin className="h-3 w-3" /> {donor.distance}
-                            <Clock className="h-3 w-3 ml-1" /> ETA: {donor.eta}
+                {hospitalDonations.filter(d => d.status === "pending").length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No confirmed donors at the moment</p>
+                  </div>
+                ) : (
+                  hospitalDonations.filter(d => d.status === "pending").map((donation) => (
+                    <div key={donation.id} className="p-4 rounded-xl border border-border bg-success/5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-crimson flex items-center justify-center">
+                            <span className="text-sm font-bold text-primary-foreground">{donation.bloodType}</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold">{donation.donorName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              For: {donation.patientName} • {donation.units} unit(s)
+                            </p>
                           </div>
                         </div>
+                        <Button variant="outline" size="sm">
+                          <Phone className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button variant="outline" size="sm">
-                        <Phone className="h-4 w-4" />
-                      </Button>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
@@ -402,24 +387,30 @@ const HospitalDashboard = () => {
                   <CardDescription>Donors currently responding</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {confirmedDonors.map((donor) => (
-                    <div key={donor.id} className="p-3 rounded-xl border border-border bg-success/5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-crimson flex items-center justify-center">
-                            <span className="text-sm font-bold text-primary-foreground">{donor.bloodType}</span>
-                          </div>
-                          <div>
-                            <p className="font-semibold text-sm">{donor.name}</p>
-                            <p className="text-xs text-muted-foreground">ETA {donor.eta}</p>
-                          </div>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          <Phone className="h-4 w-4" />
-                        </Button>
-                      </div>
+                  {hospitalDonations.filter(d => d.status === "pending").length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-muted-foreground">No confirmed donors yet</p>
                     </div>
-                  ))}
+                  ) : (
+                    hospitalDonations.filter(d => d.status === "pending").slice(0, 3).map((donation) => (
+                      <div key={donation.id} className="p-3 rounded-xl border border-border bg-success/5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-crimson flex items-center justify-center">
+                              <span className="text-sm font-bold text-primary-foreground">{donation.bloodType}</span>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm">{donation.donorName}</p>
+                              <p className="text-xs text-muted-foreground">For: {donation.patientName}</p>
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm">
+                            <Phone className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                   <Button variant="outline" className="w-full" onClick={() => setActiveTab("responses")}
                   >
                     View All Responses

@@ -62,24 +62,19 @@ const BloodBankDashboard = () => {
     return `${Math.floor(diffHours / 24)} day${Math.floor(diffHours / 24) > 1 ? "s" : ""} ago`;
   }
 
-  // Blood inventory data
+  // Blood inventory data - will be populated from real data
   const inventory = [
-    { type: "A+", units: 45, maxCapacity: 100, status: "good" },
-    { type: "A-", units: 12, maxCapacity: 50, status: "low" },
-    { type: "B+", units: 38, maxCapacity: 80, status: "good" },
-    { type: "B-", units: 8, maxCapacity: 40, status: "critical" },
-    { type: "O+", units: 62, maxCapacity: 120, status: "good" },
-    { type: "O-", units: 15, maxCapacity: 60, status: "low" },
-    { type: "AB+", units: 22, maxCapacity: 50, status: "good" },
-    { type: "AB-", units: 5, maxCapacity: 30, status: "critical" },
+    { type: "A+", units: 0, maxCapacity: 100, status: "low" },
+    { type: "A-", units: 0, maxCapacity: 50, status: "low" },
+    { type: "B+", units: 0, maxCapacity: 80, status: "low" },
+    { type: "B-", units: 0, maxCapacity: 40, status: "low" },
+    { type: "O+", units: 0, maxCapacity: 120, status: "low" },
+    { type: "O-", units: 0, maxCapacity: 60, status: "low" },
+    { type: "AB+", units: 0, maxCapacity: 50, status: "low" },
+    { type: "AB-", units: 0, maxCapacity: 30, status: "low" },
   ];
 
-  const recentTransactions = [
-    { id: 1, type: "in", bloodType: "O+", units: 5, source: "Mobile Drive - Downtown", date: "Today, 2:30 PM" },
-    { id: 2, type: "out", bloodType: "A+", units: 2, destination: "City General Hospital", date: "Today, 11:15 AM" },
-    { id: 3, type: "in", bloodType: "B+", units: 3, source: "Walk-in Donor", date: "Today, 9:00 AM" },
-    { id: 4, type: "out", bloodType: "O-", units: 4, destination: "St. Mary's Medical", date: "Yesterday, 4:45 PM" },
-  ];
+  const recentTransactions: { id: number; type: string; bloodType: string; units: number; source?: string; destination?: string; date: string }[] = [];
 
   const stats = {
     totalUnits: 207,
@@ -359,27 +354,13 @@ const BloodBankDashboard = () => {
                 <CardTitle>Upcoming Drives</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {[
-                  { location: "Downtown Community Center", date: "Jan 20, 2025", time: "9:00 AM - 4:00 PM", registrations: 45 },
-                  { location: "University Campus", date: "Jan 25, 2025", time: "10:00 AM - 5:00 PM", registrations: 32 },
-                  { location: "Corporate Park Office", date: "Feb 1, 2025", time: "11:00 AM - 3:00 PM", registrations: 28 },
-                ].map((drive, i) => (
-                  <div key={i} className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">{drive.location}</p>
-                        <p className="text-sm text-muted-foreground">{drive.date} • {drive.time}</p>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline">{drive.registrations} registered</Badge>
-                        <div className="flex gap-2 mt-2">
-                          <Button variant="outline" size="sm">Edit</Button>
-                          <Button variant="outline" size="sm">View</Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No upcoming drives scheduled</p>
+                  <Button variant="hero" className="mt-4">
+                    <Plus className="h-4 w-4 mr-2" /> Schedule Your First Drive
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
