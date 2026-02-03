@@ -189,13 +189,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             unsubscribeAuthRef.current = onAuthStateChanged(auth, async (firebaseUser) => {
               if (firebaseUser) {
-                // Load user profile from Firestore
                 await loadUserProfile(firebaseUser.uid);
-              } else if (sessionUserId) {
-                // Fallback to session-based auth
-                await loadUserProfile(sessionUserId);
               } else {
                 setUser(null);
+                sessionStorage.removeItem("crimsoncare_session_id");
+                localStorage.removeItem("crimsoncare_session_id");
                 setIsLoading(false);
               }
             });

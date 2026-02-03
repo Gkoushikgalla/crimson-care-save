@@ -80,6 +80,11 @@ service cloud.firestore {
       allow delete: if hasRole('admin');
     }
     
+    // Blood bank inventory and drives - owner (blood bank user) only
+    match /bloodBanks/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
     // Default deny - block access to any other collections
     match /{document=**} {
       allow read, write: if false;

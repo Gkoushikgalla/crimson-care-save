@@ -79,11 +79,10 @@ export const getFirebaseAuth = async () => {
       return null;
     }
     
-    const { getAuth, setPersistence, browserLocalPersistence } = await import("firebase/auth");
+    const { getAuth } = await import("firebase/auth");
     const auth = getAuth(app);
-    // Persist auth across browser sessions and devices so login works after refresh and on other devices
-    await setPersistence(auth, browserLocalPersistence);
-    console.log("Firebase Auth initialized successfully (local persistence)");
+    // Use default persistence (LOCAL on web) - do NOT call setPersistence here as repeated calls can wipe sessions
+    console.log("Firebase Auth initialized successfully");
     return auth;
   } catch (e: any) {
     console.error("Firebase Auth init error:", e);
