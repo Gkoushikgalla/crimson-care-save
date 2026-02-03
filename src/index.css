@@ -1,0 +1,252 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@layer base {
+  :root {
+    /* CrimsonCare - Healthcare Blood Donation Theme */
+    --background: 0 0% 99%;
+    --foreground: 220 20% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    /* Crimson Primary - Deep blood red */
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Warm gray secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 20%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 46%;
+
+    /* Soft rose accent */
+    --accent: 350 80% 95%;
+    --accent-foreground: 0 72% 40%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Teal success */
+    --success: 160 60% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warm amber warning */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Info blue */
+    --info: 210 80% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 0 72% 51%;
+
+    --radius: 0.75rem;
+
+    /* Custom gradients */
+    --gradient-crimson: linear-gradient(135deg, hsl(0, 72%, 51%) 0%, hsl(350, 80%, 40%) 100%);
+    --gradient-crimson-light: linear-gradient(135deg, hsl(0, 80%, 95%) 0%, hsl(350, 70%, 92%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(0, 80%, 98%) 0%, hsl(0, 0%, 100%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%) 0%, hsl(0, 20%, 99%) 100%);
+    --gradient-mesh:
+      radial-gradient(at 20% 10%, hsl(var(--primary) / 0.10) 0px, transparent 55%),
+      radial-gradient(at 80% 0%, hsl(var(--accent) / 0.55) 0px, transparent 55%),
+      radial-gradient(at 0% 60%, hsl(var(--primary) / 0.06) 0px, transparent 55%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.1), 0 8px 10px -6px hsl(0 0% 0% / 0.1);
+    --shadow-crimson: 0 10px 40px -10px hsl(0 72% 51% / 0.3);
+    --shadow-glow: 0 0 40px hsl(0 72% 51% / 0.15);
+    --shadow-card: 0 12px 34px -18px hsl(0 0% 0% / 0.18);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 220 10% 26%;
+    --sidebar-primary: 0 72% 51%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 60% 96%;
+    --sidebar-accent-foreground: 0 72% 40%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 0 72% 51%;
+  }
+
+  .dark {
+    --background: 220 20% 7%;
+    --foreground: 0 0% 98%;
+
+    --card: 220 20% 10%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 220 20% 10%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 0 72% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 220 15% 15%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 0 50% 15%;
+    --accent-foreground: 0 72% 70%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 210 80% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 0 72% 55%;
+
+    --gradient-crimson: linear-gradient(135deg, hsl(0, 72%, 55%) 0%, hsl(350, 80%, 45%) 100%);
+    --gradient-crimson-light: linear-gradient(135deg, hsl(0, 50%, 15%) 0%, hsl(350, 40%, 12%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(220, 20%, 7%) 0%, hsl(220, 20%, 10%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(220, 20%, 10%) 0%, hsl(220, 20%, 12%) 100%);
+
+    --shadow-crimson: 0 10px 40px -10px hsl(0 72% 55% / 0.4);
+    --shadow-glow: 0 0 40px hsl(0 72% 55% / 0.2);
+
+    --sidebar-background: 220 20% 8%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 0 72% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 50% 12%;
+    --sidebar-accent-foreground: 0 72% 70%;
+    --sidebar-border: 220 15% 15%;
+    --sidebar-ring: 0 72% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-gradient-crimson {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-crimson);
+  }
+
+  .bg-gradient-crimson {
+    background-image: var(--gradient-crimson);
+  }
+
+  .bg-gradient-hero {
+    background-image: var(--gradient-hero);
+  }
+
+  .bg-gradient-card {
+    background-image: var(--gradient-card);
+  }
+
+  .bg-gradient-mesh {
+    background-image: var(--gradient-mesh);
+  }
+
+  .shadow-crimson {
+    box-shadow: var(--shadow-crimson);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .glass {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+
+  .glass-strong {
+    @apply bg-card/90 backdrop-blur-2xl border border-border/60;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.6s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
