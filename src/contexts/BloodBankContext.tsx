@@ -95,9 +95,13 @@ export const BloodBankProvider = ({ children, userId }: { children: ReactNode; u
   const unsubscribeDrivesRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    // Immediately reset state on user switch to avoid showing another blood bank's data
+    // while the new Firestore listener initializes.
+    setIsLoading(true);
+    setInventoryState(defaultInventory);
+    setDrivesState([]);
+
     if (!userId) {
-      setInventoryState(defaultInventory);
-      setDrivesState([]);
       setIsLoading(false);
       return;
     }
@@ -109,6 +113,28 @@ export const BloodBankProvider = ({ children, userId }: { children: ReactNode; u
           if (db) {
             const { doc, onSnapshot, getDoc, setDoc } = await import("firebase/firestore");
             const bloodBankRef = doc(db, "bloodBanks", userId);
+
+            // Ensure the blood bank document exists so new blood bank accounts can
+            // start persisting inventory/drives immediately.
+            try {
+              const existing = await getDoc(bloodBankRef);
+              if (!existing.exists()) {
+                const seedInventory = loadInventoryFromStorage(userId);
+                const seedDrives = loadDrivesFromStorage(userId);
+                await setDoc(
+                  bloodBankRef,
+                  {
+                    inventory: seedInventory,
+                    drives: seedDrives,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  },
+                  { merge: true }
+                );
+              }
+            } catch (seedError) {
+              console.warn("Failed to seed blood bank doc:", seedError);
+            }
 
             const syncFromDoc = (data: any) => {
               if (data?.inventory && Array.isArray(data.inventory)) {
