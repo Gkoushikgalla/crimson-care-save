@@ -369,7 +369,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.warn("Firebase configured but initialization failed. Falling back to local storage.");
           // Fall through to fallback code below
         } else {
-          const { createUserWithEmailAndPassword } = await import("firebase/auth");
+          const { createUserWithEmailAndPassword, sendEmailVerification } = await import("firebase/auth");
           const { doc, setDoc, collection, query, where, getDocs } = await import("firebase/firestore");
           
           // Check if email exists
@@ -382,6 +382,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Create Firebase Auth user
           const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
           newUser.id = userCredential.user.uid;
+
+          // Send email verification so users receive a confirmation email
+          try {
+            if (userCredential.user) {
+              await sendEmailVerification(userCredential.user);
+            }
+          } catch (verifyError) {
+            console.warn("Failed to send verification email:", verifyError);
+          }
           
           // Store user profile in Firestore (without password - Firebase Auth handles it)
           try {

@@ -203,14 +203,16 @@ const Register = () => {
       return;
     }
 
-    // Show success message
-    if (formData.role === "hospital" || formData.role === "bloodbank") {
-      toast.success("Registration submitted! Awaiting admin verification.");
-    } else {
+    // Show success message (no manual verification required for blood banks)
+    if (formData.role === "donor") {
       toast.success("🎉 Welcome to CrimsonCare! Thank you for becoming a donor.");
+    } else if (formData.role === "hospital") {
+      toast.success("Hospital account created successfully.");
+    } else if (formData.role === "bloodbank") {
+      toast.success("Blood bank account created successfully. You can start using the dashboard right away.");
     }
 
-    // Mock: Show email/SMS notification (in production, this would be sent from backend)
+    // Inform user about confirmation email (sent via Firebase on signup)
     toast.info("📧 Confirmation email sent to " + formData.email, { duration: 5000 });
     
     navigate(getDashboardPath(formData.role));
@@ -527,12 +529,6 @@ const Register = () => {
                     {isLoading ? "Creating..." : "Create Account"}
                   </Button>
                 </div>
-
-                {(formData.role === "hospital" || formData.role === "bloodbank") && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    {formData.role === "hospital" ? "Hospital" : "Blood Bank"} accounts may require verification before full activation.
-                  </p>
-                )}
               </form>
             )}
 
