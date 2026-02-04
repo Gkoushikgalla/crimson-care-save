@@ -178,8 +178,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await initializeDB();
       }
       
-      // Check session then localStorage so login persists across refresh and tabs
-      const sessionUserId = sessionStorage.getItem("crimsoncare_session_id") || localStorage.getItem("crimsoncare_session_id");
+      // Check session then localStorage so login persists across refresh and tabs.
+      // This ID is used as a fallback when Firebase Auth doesn't return a user
+      // (offline, network issues, or when running in demo mode without Firebase).
+      const sessionUserId =
+        sessionStorage.getItem("crimsoncare_session_id") ||
+        localStorage.getItem("crimsoncare_session_id");
       
       if (isFirebaseConfigured) {
         try {
@@ -187,16 +191,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (auth) {
             const { onAuthStateChanged } = await import("firebase/auth");
             
-            unsubscribeAuthRef.current = onAuthStateChanged(auth, async (firebaseUser) => {
-              if (firebaseUser) {
-                await loadUserProfile(firebaseUser.uid);
-              } else {
-                setUser(null);
-                sessionStorage.removeItem("crimsoncare_session_id");
-                localStorage.removeItem("crimsoncare_session_id");
-                setIsLoading(false);
+            unsubscribeAuthRef.current = onAuthStateChanged(
+              auth,
+              async (firebaseUser) => {
+                if (firebaseUser) {
+                  // Primary source of truth: Firebase Auth user
+                  await loadUserProfile(firebaseUser.uid);
+                } else if (sessionUserId) {
+                  // Fallback: use previously stored session ID so that users
+                  // remain logged in when Firebase temporarily reports no user
+                  // (e.g. offline, slow initialization, or demo mode).
+                  await loadUserProfile(sessionUserId);
+                } else {
+                  setUser(null);
+                  setIsLoading(false);
+                }
               }
-            });
+            );
             return;
           }
         } catch (e) {

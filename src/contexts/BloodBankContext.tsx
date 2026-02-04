@@ -171,14 +171,18 @@ export const BloodBankProvider = ({ children, userId }: { children: ReactNode; u
       try {
         const db = await getFirebaseDb();
         if (db) {
-          const { doc, setDoc, getDoc } = await import("firebase/firestore");
+          const { doc, setDoc } = await import("firebase/firestore");
           const ref = doc(db, "bloodBanks", userId);
-          const snap = await getDoc(ref);
-          await setDoc(ref, {
-            ...(snap.exists() ? snap.data() : {}),
-            inventory: nextInventory,
-            updatedAt: new Date().toISOString(),
-          });
+          // Use merge so we only update the inventory field and avoid
+          // clobbering concurrent updates to other fields (like drives).
+          await setDoc(
+            ref,
+            {
+              inventory: nextInventory,
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
         }
       } catch (e) {
         console.error("Persist inventory error:", e);
@@ -194,14 +198,18 @@ export const BloodBankProvider = ({ children, userId }: { children: ReactNode; u
       try {
         const db = await getFirebaseDb();
         if (db) {
-          const { doc, setDoc, getDoc } = await import("firebase/firestore");
+          const { doc, setDoc } = await import("firebase/firestore");
           const ref = doc(db, "bloodBanks", userId);
-          const snap = await getDoc(ref);
-          await setDoc(ref, {
-            ...(snap.exists() ? snap.data() : {}),
-            drives: nextDrives,
-            updatedAt: new Date().toISOString(),
-          });
+          // Use merge so we only update the drives field and avoid
+          // clobbering concurrent updates to other fields (like inventory).
+          await setDoc(
+            ref,
+            {
+              drives: nextDrives,
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
         }
       } catch (e) {
         console.error("Persist drives error:", e);
