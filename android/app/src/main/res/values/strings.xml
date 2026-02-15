@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CrimsonCare</string>
+    <string name="title_activity_main">CrimsonCare</string>
+    <string name="package_name">com.crimsoncare.app</string>
+    <string name="custom_url_scheme">com.crimsoncare.app</string>
+</resources>
