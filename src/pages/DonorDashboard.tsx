@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Heart,
   Droplets,
@@ -26,6 +27,7 @@ import {
   Save,
   History,
   Gift,
+  Menu,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -72,6 +74,7 @@ const DonorDashboard = () => {
   >("overview");
   const [isEditing, setIsEditing] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Blood type compatibility helper
   const canDonate = (donorType: string, recipientType: string): boolean => {
@@ -840,6 +843,62 @@ const DonorDashboard = () => {
         </Button>
       </aside>
 
+      {/* Mobile Sidebar */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-72 p-0">
+          <aside className="h-full w-full glass-strong p-6 flex flex-col">
+            <Link
+              to="/"
+              className="flex items-center gap-2 mb-8"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Heart className="h-8 w-8 text-primary fill-primary" />
+              <span className="text-xl font-display font-bold">
+                Crimson<span className="text-primary">Care</span>
+              </span>
+            </Link>
+
+            <div className="p-4 rounded-xl bg-gradient-crimson-light border border-primary/20 mb-6">
+              <p className="text-xs text-muted-foreground">Logged in as</p>
+              <p className="font-semibold">{donor.name}</p>
+              <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-crimson text-primary-foreground text-sm">
+                <Droplets className="h-4 w-4" />
+                <span className="font-semibold">{donor.bloodType}</span>
+              </div>
+            </div>
+
+            <nav className="space-y-2 flex-1">
+              {nav.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                    activeTab === item.id
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-muted-foreground"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5 mr-3" />
+              Sign Out
+            </Button>
+          </aside>
+        </SheetContent>
+      </Sheet>
+
       {/* Main */}
       <main className="lg:ml-64 p-6 lg:p-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
@@ -850,6 +909,14 @@ const DonorDashboard = () => {
             <p className="text-muted-foreground">{activeTab === "overview" ? "Here's your donation overview" : ""}</p>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Menu</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setActiveTab("alerts")}>
               <Bell className="h-4 w-4" />
             </Button>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Heart,
   Users,
@@ -21,11 +22,13 @@ import {
   Clock,
   Activity,
   Shield,
+  Menu,
 } from "lucide-react";
 import { toast } from "sonner";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Real data - will be populated from context/API
   const stats = {
@@ -98,6 +101,57 @@ const AdminDashboard = () => {
         </div>
       </aside>
 
+      {/* Mobile Sidebar */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-72 p-0">
+          <aside className="h-full w-full bg-card border-r border-border p-6 flex flex-col">
+            <Link to="/" className="flex items-center gap-2 mb-8" onClick={() => setMobileMenuOpen(false)}>
+              <Heart className="h-8 w-8 text-primary fill-primary" />
+              <span className="text-xl font-display font-bold">
+                Crimson<span className="text-primary">Care</span>
+              </span>
+            </Link>
+
+            <div className="mb-6 px-4 py-2 rounded-lg bg-accent">
+              <p className="text-xs text-muted-foreground">Logged in as</p>
+              <p className="font-semibold text-accent-foreground">System Admin</p>
+            </div>
+
+            <nav className="space-y-2 flex-1">
+              {[
+                { icon: TrendingUp, label: "Dashboard", id: "overview" },
+                { icon: Users, label: "User Management", id: "users" },
+                { icon: Building2, label: "Hospital Verification", id: "hospitals" },
+                { icon: BarChart3, label: "Analytics", id: "analytics" },
+                { icon: Activity, label: "System Logs", id: "logs" },
+                { icon: Settings, label: "Settings", id: "settings" },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    activeTab === item.id
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+
+            <Button variant="ghost" className="w-full justify-start text-muted-foreground">
+              <LogOut className="h-5 w-5 mr-3" />
+              Sign Out
+            </Button>
+          </aside>
+        </SheetContent>
+      </Sheet>
+
       {/* Main Content */}
       <main className="lg:ml-64 p-6 lg:p-8">
         {/* Header */}
@@ -109,6 +163,14 @@ const AdminDashboard = () => {
             <p className="text-muted-foreground">System overview and management</p>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Menu</span>
+            </Button>
             <Button variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Export Report

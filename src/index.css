@@ -143,9 +143,15 @@
     @apply border-border;
   }
 
-  body {
+  html, body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  body {
+    position: relative;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -210,6 +216,19 @@
 
   .animate-fade-in {
     animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  /* Prevent horizontal overflow on mobile */
+  .container {
+    @apply max-w-full;
+  }
+
+  section {
+    @apply overflow-x-hidden;
+  }
+
+  main {
+    @apply overflow-x-hidden;
   }
 }
 

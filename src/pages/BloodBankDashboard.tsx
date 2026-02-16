@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ import {
   User,
   MapPin,
   Trash2,
+  Menu,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -65,6 +67,7 @@ const BloodBankDashboard = () => {
     removeDrive,
   } = useBloodBank();
   const [activeTab, setActiveTab] = useState("overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const bloodBankName = user?.bloodBankName ?? "";
 
@@ -609,11 +612,72 @@ const BloodBankDashboard = () => {
           </Button>
         </aside>
 
+        {/* Mobile Sidebar */}
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="w-72 p-0">
+            <aside className="h-full w-full glass-strong p-6 flex flex-col">
+              <Link
+                to="/"
+                className="flex items-center gap-2 mb-8 group"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Heart className="h-8 w-8 text-primary fill-primary group-hover:scale-110 transition-transform" />
+                <span className="text-xl font-display font-bold">
+                  Crimson<span className="text-primary">Care</span>
+                </span>
+              </Link>
+
+              <div className="p-4 rounded-xl bg-gradient-crimson-light border border-primary/20 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-crimson flex items-center justify-center">
+                    <Warehouse className="h-5 w-5 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm truncate">{bloodBankName || "Blood Bank"}</p>
+                    <p className="text-xs text-muted-foreground">Blood Bank</p>
+                  </div>
+                </div>
+              </div>
+
+              <nav className="space-y-1 flex-1">
+                {navItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      activeTab === item.id
+                        ? "bg-gradient-crimson text-primary-foreground shadow-crimson"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+
+              <Button variant="ghost" className="justify-start text-muted-foreground mt-auto" onClick={handleLogout}>
+                <LogOut className="h-5 w-5 mr-3" />
+                Sign Out
+              </Button>
+            </aside>
+          </SheetContent>
+        </Sheet>
+
         <main className="lg:ml-64 p-4 lg:p-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-display font-bold">{bloodBankName || "Blood Bank Dashboard"}</h1>
               <p className="text-muted-foreground">Blood Bank Dashboard</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setMobileMenuOpen(true)}>
+                <Menu className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Menu</span>
+              </Button>
             </div>
           </div>
           {renderContent()}
