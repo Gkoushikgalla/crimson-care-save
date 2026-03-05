@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSOS } from "@/contexts/SOSContext";
 import { useLocationPermission } from "@/hooks/useLocationPermission";
@@ -10,13 +10,21 @@ const LocationPermissionHandler = () => {
   const { checkBloodTypeMatch } = useSOS();
   const { requestLocation, location, error: locationError } = useLocationPermission();
 
-  // Request location permission when user logs in
+  // Prevent repeated permission requests
+  const locationRequested = useRef(false);
+
+  // Prevent multiple error toasts
+  const locationToastShown = useRef(false);
+
+  // Request location permission when user logs in (ONLY ONCE)
   useEffect(() => {
-    if (isAuthenticated && user && !location) {
-      // Small delay to ensure UI is ready
+    if (isAuthenticated && user && !location && !locationRequested.current) {
+      locationRequested.current = true;
+
       const timer = setTimeout(() => {
         requestLocation();
       }, 1000);
+
       return () => clearTimeout(timer);
     }
   }, [isAuthenticated, user, location, requestLocation]);
@@ -37,16 +45,18 @@ const LocationPermissionHandler = () => {
 
       newRequests.forEach((request) => {
         const userBloodType = user.bloodType;
-        const isMatch = userBloodType ? checkBloodTypeMatch(userBloodType, request.bloodType) : false;
+        const isMatch = userBloodType
+          ? checkBloodTypeMatch(userBloodType, request.bloodType)
+          : false;
+
         const userRole = user.role;
 
-        // Show urgency-based alert for matching blood types (donors and blood banks)
         if (isMatch && (userRole === "donor" || userRole === "bloodbank")) {
           const urgencyConfig = {
             critical: {
               title: "🚨 CRITICAL SOS ALERT - BLOOD MATCH!",
               description: `Urgent blood request for ${request.bloodType} at ${request.hospitalName}`,
-              duration: 10000, // 10 seconds
+              duration: 10000,
               action: {
                 label: "View Details",
                 onClick: () => {
@@ -79,7 +89,7 @@ const LocationPermissionHandler = () => {
           };
 
           const config = urgencyConfig[request.urgency];
-          
+
           toast(config.title, {
             description: `${config.description}. Patient: ${request.patientName}, ${request.units} unit(s) needed.`,
             duration: config.duration,
@@ -91,19 +101,21 @@ const LocationPermissionHandler = () => {
             className: request.urgency === "critical" ? "border-destructive" : "",
           });
         }
-        // For non-matching or hospitals/admins, alerts will show in "Active SOS Alerts" section
       });
     };
 
     window.addEventListener("newSOSRequests", handleNewSOSRequests as EventListener);
+
     return () => {
       window.removeEventListener("newSOSRequests", handleNewSOSRequests as EventListener);
     };
   }, [user, checkBloodTypeMatch]);
 
-  // Show location error if permission denied
+  // Show location error only ONCE
   useEffect(() => {
-    if (locationError && isAuthenticated) {
+    if (locationError && isAuthenticated && !locationToastShown.current) {
+      locationToastShown.current = true;
+
       toast.warning("Location Permission", {
         description: locationError,
         duration: 5000,
@@ -111,7 +123,7 @@ const LocationPermissionHandler = () => {
     }
   }, [locationError, isAuthenticated]);
 
-  return null; // This is a handler component, no UI
+  return null;
 };
 
 export default LocationPermissionHandler;

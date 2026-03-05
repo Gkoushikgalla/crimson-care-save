@@ -5,6 +5,11 @@ const config: CapacitorConfig = {
   appName: 'CrimsonCare',
   webDir: 'dist',
   bundledWebRuntime: false,
+  plugins: {
+    StatusBar: {
+      overlaysWebView: false
+    }
+  }
 };
 
 export default config;

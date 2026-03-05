@@ -149,12 +149,8 @@ const DonationCentersMap = ({ isOpen, onClose }: DonationCentersMapProps) => {
                     <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
                     <p className="font-medium text-foreground">No donation centers found</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Only registered blood banks and hospitals appear here. Use Google Maps below to find nearby centers.
+                      Only registered blood banks and hospitals appear here. Use the Google Maps button on the left to find nearby centers.
                     </p>
-                    <Button variant="hero" className="mt-4" onClick={openAllInGoogleMaps}>
-                      <Navigation className="h-4 w-4 mr-2" />
-                      Open in Google Maps
-                    </Button>
                   </div>
                 ) : (
                   centers.map((center) => (

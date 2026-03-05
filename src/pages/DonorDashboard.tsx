@@ -67,8 +67,8 @@ const SettingToggle = ({
 const DonorDashboard = () => {
   const navigate = useNavigate();
   const { user, logout, updateUser } = useAuth();
-  const { getActiveRequests } = useSOS();
-  const { getDonationsByDonor, getCompletedDonationsByDonor } = useDonation();
+  const { getActiveRequests, updateRequest } = useSOS();
+  const { getDonationsByDonor, getCompletedDonationsByDonor, createDonation } = useDonation();
   const [activeTab, setActiveTab] = useState<
     "overview" | "profile" | "history" | "rewards" | "alerts" | "settings"
   >("overview");
@@ -179,7 +179,13 @@ const DonorDashboard = () => {
       (a, b) => new Date(b.completedAt || b.donatedAt).getTime() - new Date(a.completedAt || a.donatedAt).getTime()
     );
     const lastDate = sorted[0]?.completedAt || sorted[0]?.donatedAt;
-    return lastDate ? new Date(lastDate).toLocaleDateString() : null;
+    return lastDate
+  ? new Date(lastDate).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+  : null;
   }, [completedDonations]);
 
   const donor = useMemo(() => {
@@ -271,8 +277,42 @@ const DonorDashboard = () => {
     navigate("/login");
   };
 
-  const handleAccept = (id: string) => {
-    toast.success("Request accepted! The hospital has been notified.");
+  const handleAccept = async (id: string) => {
+    if (!user) {
+      toast.error("Please sign in as a donor to accept this request.");
+      navigate("/login");
+      return;
+    }
+
+    const allActive = getActiveRequests();
+    const request = allActive.find((r) => r.id === id);
+    if (!request) {
+      toast.error("This SOS request is no longer active.");
+      return;
+    }
+
+    try {
+      await createDonation({
+        sosRequestId: request.id,
+        donorId: user.email || "unknown",
+        donorName: user.name || "Anonymous Donor",
+        donorPhone: user.phone || "",
+        bloodType: user.bloodType || request.bloodType,
+        units: 1,
+        hospitalName: request.hospitalName,
+        patientName: request.patientName,
+      });
+
+      await updateRequest(request.id, {
+        confirmedDonors: request.confirmedDonors + 1,
+        status: "in_progress",
+      });
+
+      toast.success("Request accepted! The hospital has been notified.");
+    } catch (error) {
+      console.error("Error accepting request:", error);
+      toast.error("Could not accept this request. Please try again.");
+    }
   };
 
   const handleSaveProfile = () => {
@@ -684,27 +724,46 @@ const DonorDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { icon: Droplets, label: "Total Donations", value: donor.totalDonations, color: "text-primary" },
-                { icon: Calendar, label: "Last Donation", value: donor.lastDonation || "None yet", color: "text-info" },
-                { icon: Award, label: "Points Earned", value: donor.points.toLocaleString(), color: "text-warning" },
-                { icon: Heart, label: "Lives Saved", value: donor.totalDonations * 3, color: "text-success" },
-              ].map((stat) => (
-                <Card key={stat.label} className="shadow-card">
-                  <CardContent className="flex items-center gap-4 p-6">
-                    <div className={`p-3 rounded-xl bg-secondary ${stat.color}`}>
-                      <stat.icon className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{stat.value}</p>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+{/* Stats Grid */}
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  {[
+    { icon: Droplets, label: "Total Donations", value: donor.totalDonations, color: "text-primary" },
+    { icon: Calendar, label: "Last Donation", value: donor.lastDonation || "None yet", color: "text-info" },
+    { icon: Award, label: "Points Earned", value: donor.points.toLocaleString(), color: "text-warning" },
+    { icon: Heart, label: "Lives Saved", value: donor.totalDonations * 3, color: "text-success" },
+  ].map((stat) => (
+    <Card key={stat.label} className="shadow-card">
+      <CardContent className="flex items-center gap-4 p-6">
+        
+        <div className={`p-3 rounded-xl bg-secondary ${stat.color}`}>
+          <stat.icon className="h-6 w-6" />
+        </div>
+
+        <div className="min-w-0">
+        {stat.label === "Last Donation" && stat.value !== "None yet" ? (
+  <div className="font-bold leading-tight">
+    <div className="text-lg">
+      {String(stat.value).split(" ").slice(0, 2).join(" ")}
+    </div>
+    <div className="text-sm">
+      {String(stat.value).split(" ")[2]}
+    </div>
+  </div>
+) : (
+            <p className="text-xl font-bold break-words leading-tight">
+              {stat.value}
+            </p>
+          )}
+
+          <p className="text-sm text-muted-foreground">
+            {stat.label}
+          </p>
+        </div>
+
+      </CardContent>
+    </Card>
+  ))}
+</div>
 
             <div className="grid lg:grid-cols-2 gap-6">
               {/* SOS Alerts */}

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Heart, Menu, X, Sun, Moon } from "lucide-react";
+import { Menu, X, Sun, Moon } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const Navbar = () => {
@@ -44,9 +44,12 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="relative">
-              <Heart className="h-8 w-8 text-primary fill-primary transition-transform group-hover:scale-110" />
-              <div className="absolute inset-0 bg-primary/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="relative h-10 w-10">
+              <img
+                src="/app-logo.png"
+                alt="CrimsonCare logo"
+                className="h-10 w-10 object-contain transition-transform group-hover:scale-110"
+              />
             </div>
             <span className="text-xl font-display font-bold text-foreground">
               Crimson<span className="text-primary">Care</span>
